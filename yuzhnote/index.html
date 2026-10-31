@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f4fa8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="YuzhNote">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>YuzhNote メモ送信</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* 1カラムの入力フォーム。上から「カテゴリ→タイトル→本文→送信」の順に親指で進める */
+:root {
+  --bg: #f2f4f7;
+  --panel: #ffffff;
+  --ink: #1e2633;
+  --muted: #6b7686;
+  --line: #d8dee7;
+  --accent: #2f4fa8;
+  --cat-book: #1d5fa8;   --cat-book-bg: #e3f0ff;
+  --cat-know: #23784a;   --cat-know-bg: #e5f6ea;
+  --cat-art:  #b0472a;   --cat-art-bg:  #ffe9e3;
+  --cat-comp: #6a3fb5;   --cat-comp-bg: #f0e8ff;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141922; --panel: #1d2430; --ink: #e6eaf0; --muted: #98a3b3; --line: #313b4a; --accent: #8fa8ff;
+    --cat-book: #9cc6ff; --cat-book-bg: #1c2f48;
+    --cat-know: #8fd9ad; --cat-know-bg: #18352a;
+    --cat-art:  #ffb09b; --cat-art-bg:  #43261e;
+    --cat-comp: #c9adff; --cat-comp-bg: #2f2448;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141922; --panel: #1d2430; --ink: #e6eaf0; --muted: #98a3b3; --line: #313b4a; --accent: #8fa8ff;
+  --cat-book: #9cc6ff; --cat-book-bg: #1c2f48;
+  --cat-know: #8fd9ad; --cat-know-bg: #18352a;
+  --cat-art:  #ffb09b; --cat-art-bg:  #43261e;
+  --cat-comp: #c9adff; --cat-comp-bg: #2f2448;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+main { max-width: 640px; margin: 0 auto; padding: calc(18px + env(safe-area-inset-top)) 16px 120px; display: grid; gap: 18px; }
+header h1 { font-size: 20px; margin: 0; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.field { display: grid; gap: 8px; }
+.label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit; font-size: 14px; padding: 9px 12px; border-radius: 999px;
+  border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+}
+.chip[aria-pressed="true"] { border-color: currentColor; font-weight: 700; }
+.chip[data-c="book"][aria-pressed="true"] { color: var(--cat-book); background: var(--cat-book-bg); }
+.chip[data-c="know"][aria-pressed="true"] { color: var(--cat-know); background: var(--cat-know-bg); }
+.chip[data-c="art"][aria-pressed="true"],
+.chip.sub[aria-pressed="true"] { color: var(--cat-art); background: var(--cat-art-bg); }
+.chip[data-c="comp"][aria-pressed="true"] { color: var(--cat-comp); background: var(--cat-comp-bg); }
+.chip.sub { font-size: 14px; padding: 7px 12px; }
+input[type="text"], input[type="url"], textarea {
+  width: 100%; font: inherit; font-size: 16px; color: var(--ink);
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 11px 12px;
+}
+textarea { min-height: 260px; line-height: 1.6; resize: vertical; font-family: var(--font-body); }
+input:focus, textarea:focus, .chip:focus-visible, .btn:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+.hidden { display: none !important; }
+details { background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+summary { cursor: pointer; font-size: 14px; font-weight: 700; }
+pre { font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; word-break: break-all; margin: 10px 0 0; }
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--bg); border-top: 1px solid var(--line);
+}
+.bar-in { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; align-items: center; }
+.btn {
+  font: inherit; font-size: 15px; border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); text-decoration: none; text-align: center;
+}
+.btn.primary { flex: 1; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+:root[data-theme="dark"] .btn.primary { color: #10162a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #10162a; } }
+.btn.primary[aria-disabled="true"] { opacity: .45; pointer-events: none; }
+.status { font-size: 12px; color: var(--muted); min-height: 1em; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>YuzhNote メモ送信</h1>
+    <p>書いて「Cosenseで開く」を押すと、YuzhNote に新しいページができます。下書きはこの端末に自動で残ります。</p>
+  </header>
+
+  <div class="field">
+    <span class="label" id="lbl-cat">カテゴリ</span>
+    <div class="chips" role="group" aria-labelledby="lbl-cat" id="cats">
+      <button class="chip" type="button" data-c="book" id="cat-book">読書メモ</button>
+      <button class="chip" type="button" data-c="know" id="cat-know">知識メモ</button>
+      <button class="chip" type="button" data-c="art" id="cat-art">文化創作</button>
+      <button class="chip" type="button" data-c="comp" id="cat-comp">コンピュータ</button>
+    </div>
+    <div class="chips hidden" role="group" aria-label="文化創作の種類" id="subs">
+      <button class="chip sub" type="button" data-s="一次創作" id="sub-1">一次創作</button>
+      <button class="chip sub" type="button" data-s="ブルアカ二次創作" id="sub-ba">ブルアカ二次</button>
+      <button class="chip sub" type="button" data-s="アークナイツ二次創作" id="sub-ak">アークナイツ二次</button>
+      <button class="chip sub" type="button" data-s="二次創作" id="sub-other">二次（他作品）</button>
+      <button class="chip sub" type="button" data-s="感想" id="sub-kanso">感想</button>
+    </div>
+  </div>
+
+  <div class="field" id="url-field">
+    <label class="label" for="url">リンク（記事・動画・X）</label>
+    <input type="url" id="url" inputmode="url" placeholder="https://x.com/Basyo_Engineer/status/…">
+    <p class="hint">X のリンクは、Cosense で開いたときに本文へ展開されます（自分のツイートはスレッドごと）。YouTube は動画が埋め込まれます。</p>
+  </div>
+
+  <div class="field">
+    <label class="label" for="title">タイトル</label>
+    <input type="text" id="title" autocomplete="off">
+    <p class="hint hidden" id="book-hint">読書メモは書名だけを入れてください。書影・著者・出版社・発売日・ISBN は Cosense で開いたときに openBD から自動で入ります。</p>
+  </div>
+
+  <div class="field">
+    <label class="label" for="body">本文</label>
+    <textarea id="body"></textarea>
+    <p class="hint">Cosense 記法がそのまま使えます。行頭スペースで箇条書き、[リンク]、[** 見出し]。</p>
+  </div>
+
+  <details>
+    <summary>送信される内容を確認</summary>
+    <pre id="preview"></pre>
+  </details>
+</main>
+
+<div class="bar">
+  <div class="bar-in">
+    <button class="btn" type="button" id="clear">消去</button>
+    <button class="btn" type="button" id="copy">本文コピー</button>
+    <a class="btn primary" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Cosenseで開く</a>
+  </div>
+  <div class="bar-in"><span class="status" id="status" role="status"></span></div>
+</div>
+
+<script>
+const PROJECT = 'YuzhNote';
+const URL_LIMIT = 7000; // これより長いURLはブラウザによって開けないことがある
+
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+
+// カテゴリごとのタグ・テンプレ・タイトル例
+const CATS = {
+  book: { tag: () => '#読書メモ', title: '書名（例：理科系の作文技術）',
+          tpl: () => ['', '[** 要点]', '', '[** 気になった所]', '', '[** 感想]', ''] },
+  know: { tag: () => '#知識メモ', title: '記事や動画のタイトル',
+          tpl: () => [`見た日：${today()}`, '', '[** メモ]', ''] },
+  art:  { tag: s => `#文化創作 #${s}`, title: '作品名　ネタ',
+          tpl: s => s === '感想'
+            ? ['作品：', `見た日：${today()}`, '', '[** 感想]', '']
+            : [...(s === '二次創作' ? ['原作：'] : []), '', '[** あらすじ・ネタ]', '', '[** 本文]', ''] },
+  comp: { tag: () => '#コンピュータ', title: 'テーマ',
+          tpl: () => ['', '[** 目的]', '', '[** やったこと]', '', '[** わかったこと]', '', '[** 参考]', ''] },
+};
+
+const $ = id => document.getElementById(id);
+const state = { cat: 'know', sub: 'ブルアカ二次創作' };
+let lastTemplate = '';
+
+const store = {
+  get() { try { return JSON.parse(localStorage.getItem('yuzhnote-draft') || 'null'); } catch { return null; } },
+  set(v) { try { localStorage.setItem('yuzhnote-draft', JSON.stringify(v)); } catch {} },
+  clear() { try { localStorage.removeItem('yuzhnote-draft'); } catch {} },
+};
+
+function templateText() {
+  const c = CATS[state.cat];
+  return c.tpl(state.sub).join('\n');
+}
+
+// 本文がまだテンプレのまま（または空）なら、カテゴリ切り替えでテンプレを差し替える
+function applyTemplate() {
+  const body = $('body');
+  if (body.value.trim() === '' || body.value === lastTemplate) {
+    lastTemplate = templateText();
+    body.value = lastTemplate;
+  }
+}
+
+function renderCats() {
+  document.querySelectorAll('#cats .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === state.cat)));
+  document.querySelectorAll('#subs .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === state.sub)));
+  $('subs').classList.toggle('hidden', state.cat !== 'art');
+  $('book-hint').classList.toggle('hidden', state.cat !== 'book');
+  $('title').placeholder = CATS[state.cat].title;
+}
+
+function isYouTube(u) { return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(u); }
+const TWEET_RE = /^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/\w+\/status\/\d+\S*$/;
+// X のリンクは「thread: URL」の行にしておき、Cosense 側の UserScript が本文に展開する
+const tweetLine = u => `thread: ${u}`;
+
+function buildPage() {
+  const title = $('title').value.trim();
+  const lines = [CATS[state.cat].tag(state.sub)];
+  const url = $('url').value.trim();
+  if (url) {
+    if (TWEET_RE.test(url)) lines.push(tweetLine(url));
+    else if (state.cat === 'know' && !isYouTube(url) && title) lines.push(`[${title.replace(/[\[\]]/g, '')} ${url}]`);
+    else lines.push(`[${url}]`);
+  }
+  // 本文に X のリンクだけの行があれば、それも展開の対象にする
+  lines.push(...$('body').value.replace(/\s+$/, '').split('\n').map(l => TWEET_RE.test(l.trim()) ? tweetLine(l.trim()) : l));
+  return { title, body: lines.join('\n') };
+}
+
+function update() {
+  const { title, body } = buildPage();
+  $('preview').textContent = (title || '（タイトル未入力）') + '\n' + body;
+  const send = $('send');
+  const href = title
+    ? `https://scrapbox.io/${PROJECT}/${encodeURIComponent(title)}?body=${encodeURIComponent(body)}`
+    : '#';
+  send.href = href;
+  send.setAttribute('aria-disabled', String(!title));
+  if (!title) setStatus('タイトルを入れると送信できます');
+  else if (href.length > URL_LIMIT) setStatus('本文が長めです。開けない場合は「本文コピー」で貼り付けてください');
+  else setStatus('');
+  store.set({ cat: state.cat, sub: state.sub, title: $('title').value, url: $('url').value, body: $('body').value, lastTemplate });
+}
+
+function setStatus(t) { $('status').textContent = t; }
+
+$('cats').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  state.cat = b.dataset.c; renderCats(); applyTemplate(); update();
+});
+$('subs').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  state.sub = b.dataset.s; renderCats(); applyTemplate(); update();
+});
+['title', 'url', 'body'].forEach(id => $(id).addEventListener('input', update));
+
+$('clear').addEventListener('click', () => {
+  $('title').value = ''; $('url').value = ''; $('body').value = '';
+  lastTemplate = ''; applyTemplate(); update(); setStatus('消去しました');
+});
+$('copy').addEventListener('click', async () => {
+  const { title, body } = buildPage();
+  try { await navigator.clipboard.writeText(body); setStatus('本文をコピーしました'); }
+  catch { setStatus('コピーできませんでした。「送信される内容を確認」から選択してコピーしてください'); }
+});
+// 送信後は下書きを残したまま（ページが開けなかったとき用）。消すときは「消去」
+$('send').addEventListener('click', e => {
+  if ($('send').getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; }
+  setStatus('Cosense を開きました。うまくできたら「消去」で下書きを消せます');
+});
+
+// 起動時：下書きがあれば復元、なければ知識メモの例を表示
+const saved = store.get();
+if (saved) {
+  Object.assign(state, { cat: saved.cat || 'know', sub: saved.sub || state.sub });
+  $('title').value = saved.title || ''; $('url').value = saved.url || '';
+  $('body').value = saved.body || ''; lastTemplate = saved.lastTemplate || '';
+}
+renderCats(); applyTemplate(); update();
+</script>
+</body>
+</html>
