@@ -8,6 +8,7 @@
 import { MY_TWITTER } from '../yuzh-common/util.js';
 import { blockedIndexes } from '../yuzh-common/blocks.js';
 import { hasBridge, bridgeFetch } from '../yuzh-common/bridge.js';
+import { imageLink } from '../yuzh-common/image.js';
 
 export const TWEET_RE = /https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/(\w+)\/status\/(\d+)/;
 export const tweetCache = new Map();
@@ -24,8 +25,17 @@ const embedText = async (screenName, id) => {
 
 // X の埋め込み用データ（syndication）。返信先がわかる。ブラウザ拡張経由でしか読めない
 const syndToken = id => ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, '');
-const syndication = async id =>
-  JSON.parse(await bridgeFetch(`https://cdn.syndication.twimg.com/tweet-result?id=${id}&lang=ja&token=${syndToken(id)}`));
+const syndCache = new Map();
+const syndication = id => {
+  if (!syndCache.has(id)) {
+    syndCache.set(id, bridgeFetch(`https://cdn.syndication.twimg.com/tweet-result?id=${id}&lang=ja&token=${syndToken(id)}`)
+      .then(JSON.parse).catch(e => { syndCache.delete(id); throw e; }));
+  }
+  return syndCache.get(id);
+};
+
+// 元の形式の画像 URL（.jpg / .png など）。動画・GIF はサムネイル画像
+const originalImages = synd => (synd.mediaDetails || []).map(m => m.media_url_https).filter(Boolean);
 
 // 自分のツイートの返信先を、自分のツイートが続く限りさかのぼる（古い順の ID の配列を返す）
 const myAncestors = async id => {
@@ -47,23 +57,34 @@ export const fetchTweets = (id, screenName = 'i') => {
     tweetCache.set(id, (async () => {
       const self = await embedText(screenName, id);
       const mine = self.screenName.toLowerCase() === MY_TWITTER;
-      if (!mine || !await hasBridge()) return { mine, list: [self] };
-      const ancestors = await myAncestors(id).catch(() => []);
+      if (!await hasBridge()) return { mine, list: [self] }; // 拡張がなければ、そのツイートだけ
       const before = [];
-      for (const aid of ancestors) before.push(await embedText(self.screenName, aid));
-      return { mine, list: [...before, self] };
+      if (mine) {
+        const ancestors = await myAncestors(id).catch(() => []);
+        for (const aid of ancestors) before.push(await embedText(self.screenName, aid));
+      }
+      const list = [...before, self];
+      // 拡張で読める X の埋め込み用データから、画像を元の形式（png など）で取り直す
+      for (const t of list) {
+        const imgs = await syndication(t.id).then(originalImages).catch(() => []);
+        if (imgs.length) t.images = imgs;
+      }
+      return { mine, list };
     })().catch(e => { tweetCache.delete(id); throw e; }));
   }
   return tweetCache.get(id);
 };
 
-// 画像の URL を、Cosense が画像として表示できる形（.jpg など）にする
-//   https://pbs.twimg.com/media/XXXX?format=webp&name=large → https://pbs.twimg.com/media/XXXX.jpg
+// 画像の URL を、Cosense が画像として表示できる形にする
+//   X の画像サーバーは拡張子で形式を選ぶ（…/XXXX.png など）。拡張子のない URL は format= の値で決める
+//   webp は拡張子では取れないので、format= の値が webp のときは jpg で取る
+//   それ以外の形式は yuzh-common/image.js の imageLink で、Cosense に画像と認めさせる
 export const tweetImage = u => {
   const m = u.match(/^(https:\/\/pbs\.twimg\.com\/media\/[\w-]+)(?:\.(\w+))?(?:\?(.*))?$/);
-  if (!m) return u;
-  const fmt = (m[2] || new URLSearchParams(m[3] || '').get('format') || 'jpg').toLowerCase();
-  return `${m[1]}.${fmt === 'webp' ? 'jpg' : fmt}`;
+  if (!m) return imageLink(u);
+  let fmt = (m[2] || new URLSearchParams(m[3] || '').get('format') || 'jpg').toLowerCase();
+  if (fmt === 'webp') fmt = 'jpg';
+  return imageLink(`${m[1]}.${fmt}`);
 };
 
 // Cosense と同じ整え方：空行を除き、[ ] ` を空白にする

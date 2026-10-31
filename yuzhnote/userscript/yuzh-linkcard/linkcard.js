@@ -2,6 +2,7 @@
 //   [https://ricapitolare.vercel.app/svg?url=URL#.svg URL]
 //   カード画像は ricapitolare（/kuroma6666 でも使っているサービス）が作る。画像を押すと元のページが開く
 import { blockedIndexes } from '../yuzh-common/blocks.js';
+import { isImageUrl } from '../yuzh-common/image.js';
 
 const CARD_BASE = 'https://ricapitolare.vercel.app/svg?url=';
 
@@ -11,13 +12,12 @@ export const cardLine = (url, indent = '') => `${indent}[${CARD_BASE}${encodeURI
 const SKIP = [
   /^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/\w+\/status\//, // ツイート（引用にする）
   /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//,           // YouTube（Cosense が埋め込む）
-  /\.(?:png|jpe?g|gif|webp|svg|bmp)(?:[?#].*)?$/i,                     // 画像
   /^https?:\/\/(?:i\.)?gyazo\.com\//,                                   // Gyazo
   /^https?:\/\/scrapbox\.io\//,                                         // Cosense 内のリンク
   /^https?:\/\/ricapitolare\.vercel\.app\//,                            // すでにカード
   /^https?:\/\/(?:open\.spotify\.com|www\.nicovideo\.jp\/watch|nico\.ms)\//, // Cosense が埋め込むもの
 ];
-export const isCardable = url => /^https?:\/\/\S+$/.test(url) && !SKIP.some(re => re.test(url));
+export const isCardable = url => /^https?:\/\/\S+$/.test(url) && !isImageUrl(url) && !SKIP.some(re => re.test(url)); // 画像はカードにしない
 
 // 「URL だけ」の行：  https://… または [https://…]
 const BARE_URL = /^(\s*)\[?(https?:\/\/[^\s\]]+)\]?\s*$/;

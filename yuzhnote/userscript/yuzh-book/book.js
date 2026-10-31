@@ -1,6 +1,7 @@
 // yuzh-book/book.js : 書名から本を決めて、ページに入れる行を作る
 //   書名 → ISBN 候補（NDL・Google Books・Open Library）→ 詳細（openBD → NDL → 版元ドットコム）
 import { escapeHtml, toast } from '../yuzh-common/util.js';
+import { imageLink } from '../yuzh-common/image.js';
 import { hasBridge } from '../yuzh-common/bridge.js';
 import { norm, toIsbn13 } from './format.js';
 import { fromOpenbd } from './openbd.js';
@@ -61,7 +62,7 @@ export const findCover = async book => {
 };
 
 export const bibLines = (book, cover) => [
-  ...(cover ? [`[${cover}]`] : []),
+  ...(cover ? [`[${imageLink(cover)}]`] : []),
   `タイトル：${book.title}`,
   `著者：${book.authors.map(a => `[${a.name}]${a.role ? `（${a.role}）` : ''}`).join(' ') || '不明'}`,
   `出版社：${book.publisher ? `[${book.publisher}]` : '不明'}`,
