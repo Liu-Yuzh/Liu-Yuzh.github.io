@@ -30,7 +30,7 @@ const finishPage = async ({ manual = '' } = {}) => {
   const tweetTargets = [];
   for (const t of findTweetTargets(lines)) {
     if (t.kind === 'mine') {
-      const r = await fetchTweets(t.id).catch(() => null);
+      const r = await fetchTweets(t.id, t.screenName).catch(() => null);
       const block = texts.slice(t.start, t.end + 1).join('\n');
       if (!r || !r.mine || r.list.every(tw => block.includes(`/status/${tw.id}`))) continue;
     }
@@ -54,7 +54,7 @@ const finishPage = async ({ manual = '' } = {}) => {
       const fresh = findTweetTargets(page.lines);
       for (const t of [...fresh].reverse()) {
         try {
-          const { mine, list } = await fetchTweets(t.id);
+          const { mine, list } = await fetchTweets(t.id, t.screenName);
           // 自分の引用ブロックが、すでにスレッド全件を含んでいれば何もしない
           if (t.kind === 'mine') {
             const block = next.slice(t.start, t.end + 1).join('\n');

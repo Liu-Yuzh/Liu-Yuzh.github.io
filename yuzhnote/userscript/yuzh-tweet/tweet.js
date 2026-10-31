@@ -1,45 +1,82 @@
-// yuzh-tweet/tweet.js : ツイートを引用ブロックに書き換えるための部品（FxTwitter を使用）
+// yuzh-tweet/tweet.js : ツイートを Cosense の引用の形にするための部品
 //   >[https://x.com/ユーザー/status/ID @ユーザー]: 1行目
 //   >2行目…
 //   >[画像URL]
-//   自分のツイートはスレッド全体を古い順に、1件ずつ別の引用ブロックにする
+//   本文と画像は Cosense 自身の機能（ツイートを貼ったときに使う /api/embed-text/twitter）で取る
+//   自分のツイートは、ブラウザ拡張経由で X の埋め込み用データを読み、スレッドの最初までさかのぼって古い順に並べる
 //   他人のツイートはそのツイートだけ
 import { MY_TWITTER } from '../yuzh-common/util.js';
 import { blockedIndexes } from '../yuzh-common/blocks.js';
+import { hasBridge, bridgeFetch } from '../yuzh-common/bridge.js';
 
 export const TWEET_RE = /https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/(\w+)\/status\/(\d+)/;
 export const tweetCache = new Map();
 
-export const fetchTweets = id => {
+// Cosense の機能でツイートの本文・画像を取る
+const embedText = async (screenName, id) => {
+  const url = `https://x.com/${screenName}/status/${id}`;
+  const res = await fetch(`/api/embed-text/twitter?url=${encodeURIComponent(url)}`, { method: 'POST' });
+  if (!res.ok) throw new Error(`ツイートを取得できませんでした（${res.status}）`);
+  const d = await res.json();
+  if (!d.description || !d.screenName) throw new Error('ツイートの本文がありませんでした');
+  return { id, screenName: d.screenName, description: d.description, images: d.images || [] };
+};
+
+// X の埋め込み用データ（syndication）。返信先がわかる。ブラウザ拡張経由でしか読めない
+const syndToken = id => ((Number(id) / 1e15) * Math.PI).toString(36).replace(/(0+|\.)/g, '');
+const syndication = async id =>
+  JSON.parse(await bridgeFetch(`https://cdn.syndication.twimg.com/tweet-result?id=${id}&lang=ja&token=${syndToken(id)}`));
+
+// 自分のツイートの返信先を、自分のツイートが続く限りさかのぼる（古い順の ID の配列を返す）
+const myAncestors = async id => {
+  const chain = [];
+  let cur = id;
+  for (let i = 0; i < 50; i++) {
+    const t = await syndication(cur);
+    const parentId = t.in_reply_to_status_id_str;
+    if (!parentId || (t.in_reply_to_screen_name || '').toLowerCase() !== MY_TWITTER) break;
+    chain.unshift(parentId);
+    cur = parentId;
+  }
+  return chain;
+};
+
+// ツイートを取る。自分のツイートなら、さかのぼったスレッドもあわせて古い順に返す
+export const fetchTweets = (id, screenName = 'i') => {
   if (!tweetCache.has(id)) {
     tweetCache.set(id, (async () => {
-      const res = await fetch(`https://api.fxtwitter.com/2/thread/${id}`);
-      if (!res.ok) throw new Error(`FxTwitter ${res.status}`);
-      const j = await res.json();
-      if (!j.status) throw new Error('ツイートが見つかりません');
-      const mine = (j.status.author?.screen_name || '').toLowerCase() === MY_TWITTER;
-      const list = (mine && j.thread?.length ? [...j.thread] : [j.status])
-        .sort((a, b) => (a.created_timestamp || 0) - (b.created_timestamp || 0)); // 古い順
-      return { mine, list };
+      const self = await embedText(screenName, id);
+      const mine = self.screenName.toLowerCase() === MY_TWITTER;
+      if (!mine || !await hasBridge()) return { mine, list: [self] };
+      const ancestors = await myAncestors(id).catch(() => []);
+      const before = [];
+      for (const aid of ancestors) before.push(await embedText(self.screenName, aid));
+      return { mine, list: [...before, self] };
     })().catch(e => { tweetCache.delete(id); throw e; }));
   }
   return tweetCache.get(id);
 };
 
-export const tweetMedia = t => [
-  ...(t.media?.photos || []).map(p => p.url),
-  ...(t.media?.videos || []).map(v => v.thumbnail_url),
-].filter(Boolean).map(u => u.replace(/\?.*$/, '')); // ?name=… を外して、Cosense が画像と認識する形にする
+// 画像の URL を、Cosense が画像として表示できる形（.jpg など）にする
+//   https://pbs.twimg.com/media/XXXX?format=webp&name=large → https://pbs.twimg.com/media/XXXX.jpg
+export const tweetImage = u => {
+  const m = u.match(/^(https:\/\/pbs\.twimg\.com\/media\/[\w-]+)(?:\.(\w+))?(?:\?(.*))?$/);
+  if (!m) return u;
+  const fmt = (m[2] || new URLSearchParams(m[3] || '').get('format') || 'jpg').toLowerCase();
+  return `${m[1]}.${fmt === 'webp' ? 'jpg' : fmt}`;
+};
+
+// Cosense と同じ整え方：空行を除き、[ ] ` を空白にする
+const escapeForEmbed = s => s.replace(/[\s\r\n\u2028\u2029]+/g, ' ').replace(/\s*[[\]`]\s*/g, ' ').trim();
 
 // 1件のツイートを引用行にする（indent は元の行の字下げ）
 export const tweetQuote = (t, indent = '') => {
-  const sn = t.author?.screen_name || 'unknown';
-  const url = `https://x.com/${sn}/status/${t.id}`;
-  const [first = '', ...rest] = String(t.text || '').split('\n');
+  const url = `https://x.com/${t.screenName}/status/${t.id}`;
+  const lines = t.description.split('\n').filter(l => !/^\s*$/.test(l)).map(escapeForEmbed);
   return [
-    `${indent}>[${url} @${sn}]: ${first}`,
-    ...rest.map(s => `${indent}>${s}`),
-    ...tweetMedia(t).map(u => `${indent}>[${u}]`),
+    `${indent}>[${url} @${t.screenName}]: ${lines[0] || ''}`,
+    ...lines.slice(1).map(l => `${indent}>${l}`),
+    ...t.images.map(u => `${indent}>[${tweetImage(u)}]`),
   ];
 };
 
@@ -59,7 +96,7 @@ export const findTweetTargets = (lines, onlyLineIds = null) => {
     const text = lines[i].text;
     if (onlyLineIds && !onlyLineIds.has(lines[i].id)) continue;
     let m = text.match(BARE_TWEET);
-    if (m) { targets.push({ start: i, end: i, indent: m[1], id: m[2].match(TWEET_RE)[2], kind: 'bare' }); continue; }
+    if (m) { const u = m[2].match(TWEET_RE); targets.push({ start: i, end: i, indent: m[1], id: u[2], screenName: u[1], kind: 'bare' }); continue; }
     m = text.match(QUOTE_HEAD);
     if (m && m[3].toLowerCase() === MY_TWITTER) {
       // スレッドの範囲：引用の行が続く間と、空行をはさんで自分のツイートの引用が続く間
@@ -71,7 +108,7 @@ export const findTweetTargets = (lines, onlyLineIds = null) => {
         if (lines[end + 1] && !lines[end + 1].text.trim() && isMyHead(lines[end + 2]?.text)) { end += 2; continue; }
         break;
       }
-      targets.push({ start: i, end, indent: ind, id: m[4], kind: 'mine' });
+      targets.push({ start: i, end, indent: ind, id: m[4], screenName: m[3], kind: 'mine' });
       i = end; // スレッドの途中のツイートを、別のまとまりとして数えない
     }
   }

@@ -12,7 +12,7 @@ Cosense プロジェクト [YuzhNote](https://scrapbox.io/YuzhNote/) で動か�
 | `yuzh-headings` | 見出しジャンプ・見出しボタン（kuroma6666 の UserScript を整理したもの） |
 | `yuzh-bookshelf` | 読書メモの本棚 |
 | `yuzh-linkcard` | URL をリンク先のカード画像にする（ricapitolare を使用） |
-| `yuzh-tweet` | ツイートの取得と、引用ブロックへの整形 |
+| `yuzh-tweet` | ツイートの取得（Cosense の機能と、拡張経由の X の埋め込み用データ）と、引用ブロックへの整形 |
 | `yuzh-book` | 書誌の取得（openBD・国立国会図書館サーチ・版元ドットコム）と整形 |
 | `yuzh-finish` | ページの仕上げ（ツイートの引用化・リンクのカード化・書誌の自動入力）とメニュー |
 | `settings-style.css` | UserCSS（`settings` ページの `code:style.css`） |

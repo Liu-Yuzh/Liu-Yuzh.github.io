@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         YuzhNote 書誌取得ブリッジ
 // @namespace    https://liu-yuzh.github.io/yuzhnote/
-// @version      1.0.0
-// @description  YuzhNote（Cosense）の UserScript が、国立国会図書館サーチと版元ドットコムの書誌を読めるようにする
+// @version      1.1.0
+// @description  YuzhNote（Cosense）の UserScript が、国立国会図書館サーチ・版元ドットコムの書誌と、X のスレッドのつながりを読めるようにする
 // @match        https://scrapbox.io/YuzhNote/*
 // @match        https://scrapbox.io/YuzhNote
 // @grant        GM.xmlHttpRequest
 // @grant        GM_xmlhttpRequest
 // @connect      ndlsearch.ndl.go.jp
 // @connect      www.hanmoto.com
+// @connect      cdn.syndication.twimg.com
 // @run-at       document-start
 // @downloadURL  https://liu-yuzh.github.io/yuzhnote/yuzhnote-bridge.user.js
 // @updateURL    https://liu-yuzh.github.io/yuzhnote/yuzhnote-bridge.user.js
@@ -21,7 +22,7 @@
 (function () {
   'use strict';
 
-  const ALLOWED = ['ndlsearch.ndl.go.jp', 'www.hanmoto.com'];
+  const ALLOWED = ['ndlsearch.ndl.go.jp', 'www.hanmoto.com', 'cdn.syndication.twimg.com'];
 
   const gmRequest = (typeof GM !== 'undefined' && GM.xmlHttpRequest)
     ? opts => GM.xmlHttpRequest(opts)
@@ -45,7 +46,7 @@
     if (e.origin !== 'https://scrapbox.io') return;
     const d = e.data || {};
     if (d.type === 'yuzh-bridge-ping') {
-      window.postMessage({ type: 'yuzh-bridge-pong', version: '1.0.0' }, 'https://scrapbox.io');
+      window.postMessage({ type: 'yuzh-bridge-pong', version: '1.1.0' }, 'https://scrapbox.io');
       return;
     }
     if (d.type !== 'yuzh-bridge-req') return;

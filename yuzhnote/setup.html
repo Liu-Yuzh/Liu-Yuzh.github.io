@@ -34,7 +34,7 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
 <main>
   <header>
     <h1>書誌取得ブリッジの入れ方</h1>
-    <p class="lead">YuzhNote で読書メモを作ったとき、openBD にない本を国立国会図書館サーチと版元ドットコムでも探せるようにするためのブラウザ拡張です。入れなくても、openBD にある本の書誌は入ります。</p>
+    <p class="lead">YuzhNote で、openBD にない本を国立国会図書館サーチと版元ドットコムでも探したり、自分のツイートのスレッドをさかのぼって引用したりするためのブラウザ拡張です。入れなくても、openBD にある本の書誌と、ツイート1件ずつの引用は入ります。</p>
   </header>
 
   <section>
@@ -65,12 +65,14 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
 
   <section>
     <h2>このブリッジがしていること</h2>
-    <p>YuzhNote（<code>scrapbox.io/YuzhNote</code>）の中だけで動き、Cosense の UserScript から頼まれたときに、次の 2 つのサイトのページを読んで渡します。読むだけで、送信やログイン情報の受け渡しはしません。</p>
+    <p>YuzhNote（<code>scrapbox.io/YuzhNote</code>）の中だけで動き、Cosense の UserScript から頼まれたときに、次の 3 つのサイトのページを読んで渡します。読むだけで、送信やログイン情報の受け渡しはしません。</p>
     <ol>
-      <li><code>ndlsearch.ndl.go.jp</code>（国立国会図書館サーチ）</li>
-      <li><code>www.hanmoto.com</code>（版元ドットコム）</li>
+      <li><code>ndlsearch.ndl.go.jp</code>（国立国会図書館サーチ）… 書誌</li>
+      <li><code>www.hanmoto.com</code>（版元ドットコム）… 書誌</li>
+      <li><code>cdn.syndication.twimg.com</code>（X の埋め込み用データ）… 自分のツイートのスレッドをさかのぼるため</li>
     </ol>
-    <p class="note">ブラウザは安全のため、あるサイト（Cosense）から別のサイトの中身を読むことを制限しています（CORS）。この 2 つのサイトはその許可を出していないので、拡張の権限で読んでいます。</p>
+    <p class="note">ブラウザは安全のため、あるサイト（Cosense）から別のサイトの中身を読むことを制限しています（CORS）。これらのサイトはその許可を出していないので、拡張の権限で読んでいます。</p>
+    <p class="note">1.0.0 を入れた方へ：Tampermonkey は自動で更新されます（すぐ更新したいときは、もう一度「ブリッジを入れる」から入れ直してください）。iPhone の Userscripts は入れ直してください。</p>
   </section>
 
   <p><a href="./">← メモ送信エディタに戻る</a></p>
