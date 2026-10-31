@@ -1,5 +1,6 @@
 // yuzh-finish/script.js : ページの仕上げ（ツイートの引用化・書誌の自動入力）と、そのメニュー
 //   ツイート：URL だけの行は、ページを開いたときと、手を止めて5秒たったときに変換する
+//   リンク：URL だけの行は、リンク先のカード画像にする（ツイート・YouTube・画像は除く）
 //   書誌：自動で入れるのは「作って30分以内のページ」だけ。古いページはメニューから
 import { toast, sleep } from '../yuzh-common/util.js';
 import { localText, waitSynced, writePage } from '../yuzh-common/page-io.js';
@@ -8,6 +9,7 @@ import { fetchTweets, tweetQuote, findTweetTargets } from '../yuzh-tweet/tweet.j
 import { isBibDone, isBookPage } from '../yuzh-book/format.js';
 import { resolveBook, findCover, bibLines } from '../yuzh-book/book.js';
 import { SHELF_PAGE, SHELF_EXCLUDE } from '../yuzh-bookshelf/script.js';
+import { findCardTargets, applyCards } from '../yuzh-linkcard/linkcard.js';
 
 const RECENT_SEC = 30 * 60;
 let finishing = false;
@@ -36,10 +38,11 @@ const finishPage = async ({ manual = '' } = {}) => {
   }
   const needBib = !isBibDone(texts) && (manual === 'bib' ||
     (!manual && isBookPage(texts) && isNew && !declined && !SHELF_EXCLUDE.includes(title) && title !== SHELF_PAGE));
+  const needCards = findCardTargets(texts).length > 0;
   const stop = msg => { if (msg) toast(msg); finishing = false; };
   if (manual === 'bib' && isBibDone(texts)) return stop('このページにはもう書誌が入っています');
   if (manual === 'tweet' && !tweetTargets.length) return stop('変換が必要なツイートはありません');
-  if (!tweetTargets.length && !needBib) return stop();
+  if (!tweetTargets.length && !needBib && !needCards) return stop();
 
   try {
     toast('ページを仕上げています。少しだけ編集を待ってください…', 0);
@@ -68,6 +71,9 @@ const finishPage = async ({ manual = '' } = {}) => {
         }
       }
     }
+
+    // リンク：URL だけの行をカードにする
+    next = applyCards(next);
 
     if (needBib) {
       toast('本を探しています…', 0);

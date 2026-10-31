@@ -5,6 +5,7 @@
 //   自分のツイートはスレッド全体を古い順に、1件ずつ別の引用ブロックにする
 //   他人のツイートはそのツイートだけ
 import { MY_TWITTER } from '../yuzh-common/util.js';
+import { blockedIndexes } from '../yuzh-common/blocks.js';
 
 export const TWEET_RE = /https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/(\w+)\/status\/(\d+)/;
 export const tweetCache = new Map();
@@ -52,7 +53,9 @@ export const QUOTE_HEAD = /^(\s*)>\[(https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)
 // 置き換える範囲 { start, end, indent, id } の一覧を作る
 export const findTweetTargets = (lines, onlyLineIds = null) => {
   const targets = [];
+  const blocked = blockedIndexes(lines.map(l => l.text)); // コードブロックと表の中は対象外
   for (let i = 1; i < lines.length; i++) {
+    if (blocked.has(i)) continue;
     const text = lines[i].text;
     if (onlyLineIds && !onlyLineIds.has(lines[i].id)) continue;
     let m = text.match(BARE_TWEET);

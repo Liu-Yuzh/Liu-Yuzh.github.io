@@ -124,7 +124,7 @@ pre { font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; w
   <div class="field" id="url-field">
     <label class="label" for="url">リンク（記事・動画・X）</label>
     <input type="url" id="url" inputmode="url" placeholder="https://x.com/Basyo_Engineer/status/…">
-    <p class="hint">X のリンクは、Cosense で開いたときに本文へ展開されます（自分のツイートはスレッドごと）。YouTube は動画が埋め込まれます。</p>
+    <p class="hint">X のリンクは本文へ展開されます（自分のツイートはスレッドごと）。記事のリンクは、リンク先のカード画像になります。YouTube は動画が埋め込まれます。</p>
   </div>
 
   <div class="field">
@@ -217,9 +217,9 @@ function buildPage() {
   const lines = [CATS[state.cat].tag(state.sub)];
   const url = $('url').value.trim();
   if (url) {
+    // X はスレッドの展開、それ以外は URL だけの行にする（Cosense でリンク先のカード画像になる）
     if (TWEET_RE.test(url)) lines.push(tweetLine(url));
-    else if (state.cat === 'know' && !isYouTube(url) && title) lines.push(`[${title.replace(/[\[\]]/g, '')} ${url}]`);
-    else lines.push(`[${url}]`);
+    else lines.push(url);
   }
   // 本文に X のリンクだけの行があれば、それも展開の対象にする
   lines.push(...$('body').value.replace(/\s+$/, '').split('\n').map(l => TWEET_RE.test(l.trim()) ? tweetLine(l.trim()) : l));
