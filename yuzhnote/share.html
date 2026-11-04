@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>共有メニューから開く設定</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<style>
+:root {
+  --bg: #f2f4f7; --panel: #ffffff; --ink: #1e2633; --muted: #6b7686; --line: #d8dee7; --accent: #2f4fa8;
+  --font-body: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #141922; --panel: #1d2430; --ink: #e6eaf0; --muted: #98a3b3; --line: #313b4a; --accent: #8fa8ff; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); line-height: 1.7; }
+main { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; display: grid; gap: 20px; }
+h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+h2 { font-size: 17px; margin: 0 0 6px; }
+p { margin: 0; }
+.lead { color: var(--muted); font-size: 14px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 8px; }
+ol { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; }
+a { color: var(--accent); }
+.btn { display: inline-block; padding: 10px 14px; border-radius: 10px; background: var(--accent); color: #fff; text-decoration: none; font-weight: bold; }
+@media (prefers-color-scheme: dark) { .btn { color: #10162a; } }
+code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 4px; word-break: break-all; }
+.note { font-size: 13px; color: var(--muted); }
+pre { font-size: 12.5px; background: var(--bg); padding: 10px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+button.copy { font: inherit; font-size: 14px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; justify-self: start; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>共有メニューから開く設定</h1>
+    <p class="lead">記事やツイートを見ているときに「共有」から YuzhNote のメモ送信エディタを開くと、リンクとタイトルが入った新しい下書きができます。同じリンクの下書きがすでにあれば、その下書きが開きます。</p>
+  </header>
+
+  <section>
+    <h2>Android（Chrome）</h2>
+    <ol>
+      <li>Chrome でメモ送信エディタを開き、メニュー（︙）→「ホーム画面に追加」（または「アプリをインストール」）を押す。</li>
+      <li>記事やツイートの「共有」を押し、出てきたアプリの中から「YuzhNote」を選ぶ。</li>
+    </ol>
+    <p class="note">前からホーム画面に入れている場合、共有の一覧に出てくるまで1日ほどかかることがあります。すぐ使いたいときは、ホーム画面のアイコンを消して入れ直してください（下書きは消えません）。</p>
+  </section>
+
+  <section>
+    <h2>iPhone（ショートカット）</h2>
+    <p>iPhone はホーム画面の Web アプリを共有先にできないため、「ショートカット」アプリで共有メニューに足します。</p>
+    <ol>
+      <li>「ショートカット」アプリで ＋ を押して、新しいショートカットを作る。名前は「YuzhNote」などにする。</li>
+      <li>下の「ⓘ」（詳細）で「共有シートに表示」をオンにし、受け入れる種類を「URL」と「Safari Webページ」にする。</li>
+      <li>アクション「Webページの詳細を取得」を足し、「ショートカットの入力」の「名前」を取得にする。</li>
+      <li>アクション「URL エンコード」を2つ足し、1つ目に「ショートカットの入力」、2つ目に「Webページの詳細」（名前）を入れる。</li>
+      <li>アクション「テキスト」を足し、次のように書く（［ ］の所は、変数ボタンから前のアクションの結果を入れる）。
+        <pre>https://liu-yuzh.github.io/yuzhnote/?url=［URLエンコードされたテキスト 1］&amp;title=［URLエンコードされたテキスト 2］</pre></li>
+      <li>アクション「URL を開く」を足し、上の「テキスト」を入れる。</li>
+    </ol>
+    <p class="note">ショートカットから開くと Safari で開きます。ホーム画面から開いたエディタと Safari で開いたエディタは、下書きが別々に保存されます。共有から使うことが多いなら、エディタは Safari で使うのがおすすめです（書誌取得ブリッジによるタグの候補も、Safari でしか出ません）。</p>
+  </section>
+
+  <section>
+    <h2>パソコン（ブックマークレット）</h2>
+    <p>次の文字列を URL にしたブックマークを作ると、見ているページのリンクとタイトル（文字を選んでいればその文章も）でエディタが開きます。下のリンクをブックマークバーへドラッグしても作れます。</p>
+    <p><a class="btn" id="bm" href="#">YuzhNote に送る</a></p>
+    <pre id="bm-code"></pre>
+    <button class="copy" type="button" id="bm-copy">コピー</button>
+  </section>
+
+  <section>
+    <h2>しくみ</h2>
+    <p>エディタは <code>?url=…&amp;title=…&amp;text=…</code> を付けて開かれると、その内容で下書きを作ります。<code>text</code> にリンクしかないとき（Android でよくあります）は、そのリンクを使います。リンク以外の文章が来たときは、本文の最後に引用として入れます。</p>
+  </section>
+
+  <p><a href="./">← メモ送信エディタに戻る</a></p>
+</main>
+<script>
+const BASE = new URL('./', location.href).href;
+const code = "javascript:(()=>{const s=String(getSelection()).trim();window.open('" + BASE
+  + "?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)+(s?'&text='+encodeURIComponent(s):''),'_blank')})()";
+document.getElementById('bm').href = code;
+document.getElementById('bm').addEventListener('click', e => { e.preventDefault(); alert('このリンクをブックマークバーへドラッグしてください'); });
+document.getElementById('bm-code').textContent = code;
+document.getElementById('bm-copy').addEventListener('click', async e => {
+  try { await navigator.clipboard.writeText(code); e.target.textContent = 'コピーしました'; }
+  catch { e.target.textContent = 'コピーできませんでした。上の文字列を選んでコピーしてください'; }
+});
+</script>
+</body>
+</html>

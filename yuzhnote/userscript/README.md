@@ -10,7 +10,10 @@ Cosense プロジェクト [YuzhNote](https://scrapbox.io/YuzhNote/) で動か�
 | `yuzh-templates` | テンプレから新規作成 |
 | `yuzh-charcount` | 文字数カウント |
 | `yuzh-headings` | 見出しジャンプ・見出しボタン（kuroma6666 の UserScript を整理したもの） |
-| `yuzh-bookshelf` | 読書メモの本棚 |
+| `yuzh-bookshelf` | 読書メモの本棚（`status.js`：読書の状態の判定と書き換え。状態で絞り込むタブつき） |
+| `yuzh-readstatus` | ページメニュー「読書の状態」で #積読 #読書中 #読了 を付ける |
+| `yuzh-quote` | 選んだ文字のメニュー「引用」。読書メモではページ数 (p.23) を付ける |
+| `yuzh-dupcheck` | このページのリンクが、ほかのページにもあれば知らせる |
 | `yuzh-linkcard` | URL をリンク先のカード画像にする（ricapitolare を使用） |
 | `yuzh-tweet` | ツイートの取得（Cosense の機能と、拡張経由の X の埋め込み用データ）と、引用ブロックへの整形 |
 | `yuzh-book` | 書誌の取得（openBD・国立国会図書館サーチ・版元ドットコム）と整形 |

@@ -34,7 +34,7 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
 <main>
   <header>
     <h1>書誌取得ブリッジの入れ方</h1>
-    <p class="lead">YuzhNote で、openBD にない本を国立国会図書館サーチと版元ドットコムでも探したり、自分のツイートのスレッドをさかのぼって引用したりするためのブラウザ拡張です。入れなくても、openBD にある本の書誌と、ツイート1件ずつの引用は入ります。</p>
+    <p class="lead">YuzhNote で、openBD にない本を国立国会図書館サーチと版元ドットコムでも探したり、自分のツイートのスレッドをさかのぼって引用したり、メモ送信エディタでタグの候補を出したりするためのブラウザ拡張です。入れなくても、openBD にある本の書誌と、ツイート1件ずつの引用は入ります。</p>
   </header>
 
   <section>
@@ -42,7 +42,7 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
     <ol>
       <li><a href="https://addons.mozilla.org/ja/firefox/addon/tampermonkey/">Tampermonkey</a> を Firefox に追加する。</li>
       <li>下の「ブリッジを入れる」を開くと Tampermonkey の画面が出るので、「インストール」を押す。</li>
-      <li>YuzhNote のページを開き直す。</li>
+      <li>YuzhNote のページと、メモ送信エディタを開き直す。</li>
     </ol>
     <p><a class="btn" href="yuzhnote-bridge.user.js">ブリッジを入れる</a></p>
   </section>
@@ -65,13 +65,15 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
 
   <section>
     <h2>このブリッジがしていること</h2>
-    <p>YuzhNote（<code>scrapbox.io/YuzhNote</code>）の中だけで動き、Cosense の UserScript から頼まれたときに、次の 3 つのサイトのページを読んで渡します。読むだけで、送信やログイン情報の受け渡しはしません。</p>
+    <p>YuzhNote（<code>scrapbox.io/YuzhNote</code>）とメモ送信エディタ（<code>liu-yuzh.github.io/yuzhnote</code>）の中だけで動きます。Cosense の UserScript から頼まれたときに、次の 3 つのサイトのページを読んで渡します。読むだけで、送信やログイン情報の受け渡しはしません。</p>
     <ol>
       <li><code>ndlsearch.ndl.go.jp</code>（国立国会図書館サーチ）… 書誌</li>
       <li><code>www.hanmoto.com</code>（版元ドットコム）… 書誌</li>
       <li><code>cdn.syndication.twimg.com</code>（X の埋め込み用データ）… 自分のツイートのスレッドをさかのぼるため</li>
     </ol>
+    <p>メモ送信エディタからは、YuzhNote のページ一覧（<code>scrapbox.io/api/pages/YuzhNote</code>）だけを読みます。タグの候補を出すためで、ほかのページや本文は読みません。非公開のプロジェクトでも読めるよう、このときだけ Cosense にログインした状態で読みます。読んだ一覧はその端末のエディタの中にだけ保存されます。</p>
     <p class="note">ブラウザは安全のため、あるサイト（Cosense）から別のサイトの中身を読むことを制限しています（CORS）。これらのサイトはその許可を出していないので、拡張の権限で読んでいます。</p>
+    <p class="note">1.1.0 以前を入れた方へ：1.2.0 からメモ送信エディタでも動くようになりました。Tampermonkey で更新するとき、<code>liu-yuzh.github.io</code> と <code>scrapbox.io</code> へのアクセスの許可を求められたら許可してください。</p>
     <p class="note">1.0.0 を入れた方へ：Tampermonkey は自動で更新されます（すぐ更新したいときは、もう一度「ブリッジを入れる」から入れ直してください）。iPhone の Userscripts は入れ直してください。</p>
   </section>
 

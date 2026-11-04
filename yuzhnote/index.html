@@ -95,14 +95,48 @@ pre { font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; w
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #10162a; } }
 .btn.primary[aria-disabled="true"] { opacity: .45; pointer-events: none; }
 .status { font-size: 12px; color: var(--muted); min-height: 1em; }
+/* 記事リンクの追加欄。2件目以降は右に削除ボタンを付ける */
+#urls { display: grid; gap: 8px; }
+.url-row { display: flex; gap: 8px; }
+.url-row input { flex: 1; min-width: 0; }
+.btn.del { padding: 0 14px; font-size: 18px; line-height: 1; color: var(--muted); }
+.btn.add { justify-self: start; font-size: 14px; padding: 9px 14px; border-style: dashed; color: var(--accent); }
+
+/* 下書きの切り替え */
+.drafts { display: flex; gap: 8px; }
+.drafts select {
+  flex: 1; min-width: 0; font: inherit; font-size: 15px; color: var(--ink);
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px;
+}
+.drafts .btn { padding: 10px 14px; font-size: 14px; white-space: nowrap; }
+/* 読書の状態 */
+.chip.st[aria-pressed="true"] { color: var(--cat-book); background: var(--cat-book-bg); }
+/* タグ */
+.tags-chosen:empty { display: none; }
+.chip.tag { color: var(--accent); border-color: currentColor; font-size: 14px; padding: 6px 10px; }
+.chip.tag::after { content: " ×"; color: var(--muted); }
+.chip.cand { font-size: 13px; padding: 6px 10px; color: var(--muted); }
+.chip.cand::before { content: "＋ "; }
+.sublabel { font-size: 12px; color: var(--muted); margin: 2px 0 -2px; }
+.linkish { font: inherit; font-size: 12px; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.warn { color: var(--cat-art); }
+select:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>YuzhNote メモ送信</h1>
-    <p>書いて「Cosenseで開く」を押すと、YuzhNote に新しいページができます。下書きはこの端末に自動で残ります。<a href="setup.html">書誌取得ブリッジの入れ方</a></p>
+    <p>書いて「Cosenseで開く」を押すと、YuzhNote に新しいページができます。下書きはこの端末に自動で残ります。<a href="share.html">共有メニューから開く設定</a>・<a href="setup.html">書誌取得ブリッジの入れ方</a></p>
   </header>
+
+  <div class="field">
+    <label class="label" for="drafts">下書き</label>
+    <div class="drafts">
+      <select id="drafts"></select>
+      <button class="btn" type="button" id="new-draft">＋ 新しいメモ</button>
+    </div>
+  </div>
 
   <div class="field">
     <span class="label" id="lbl-cat">カテゴリ</span>
@@ -119,18 +153,38 @@ pre { font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; w
       <button class="chip sub" type="button" data-s="二次創作" id="sub-other">二次（他作品）</button>
       <button class="chip sub" type="button" data-s="感想" id="sub-kanso">感想</button>
     </div>
+    <div class="chips hidden" role="group" aria-label="読書の状態" id="statuses">
+      <button class="chip st" type="button" data-st="">状態なし</button>
+      <button class="chip st" type="button" data-st="積読">積読</button>
+      <button class="chip st" type="button" data-st="読書中">読書中</button>
+      <button class="chip st" type="button" data-st="読了">読了</button>
+    </div>
   </div>
 
   <div class="field" id="url-field">
     <label class="label" for="url">リンク（記事・動画・X）</label>
-    <input type="url" id="url" inputmode="url" placeholder="https://x.com/Basyo_Engineer/status/…">
-    <p class="hint">X のリンクは本文へ展開されます（自分のツイートはスレッドごと）。記事のリンクは、リンク先のカード画像になります。YouTube は動画が埋め込まれます。</p>
+    <div id="urls">
+      <div class="url-row"><input type="url" id="url" class="url-in" inputmode="url" placeholder="https://x.com/Basyo_Engineer/status/…" aria-label="リンク 1"></div>
+    </div>
+    <button class="btn add" type="button" id="add-url">＋ 記事を追加</button>
+    <p class="hint">複数のリンクは、上から順に1行ずつ本文の頭に入ります。X のリンクは本文へ展開されます（自分のツイートはスレッドごと）。記事のリンクは、リンク先のカード画像になります。YouTube は動画が埋め込まれます。</p>
   </div>
 
   <div class="field">
     <label class="label" for="title">タイトル</label>
     <input type="text" id="title" autocomplete="off">
     <p class="hint hidden" id="book-hint">読書メモは書名だけを入れてください。書影・著者・出版社・発売日・ISBN は Cosense で開いたときに openBD から自動で入ります。</p>
+    <p class="hint warn hidden" id="title-dup">同じタイトルのページがすでにあります。開くと新しいページではなく、そのページが開きます。</p>
+  </div>
+
+  <div class="field">
+    <label class="label" for="tag-input">タグ（追加）</label>
+    <div class="chips tags-chosen" id="tags-chosen" aria-label="追加したタグ"></div>
+    <input type="text" id="tag-input" autocomplete="off" enterkeyhint="done" placeholder="入力すると既存のページから候補が出ます">
+    <div class="chips" id="tag-suggest" aria-label="タグの候補"></div>
+    <p class="sublabel hidden" id="related-label">本文に出てくる既存のページ</p>
+    <div class="chips" id="tag-related" aria-label="本文に出てくる既存のページ"></div>
+    <p class="hint"><span id="dict-status"></span> <button class="linkish" type="button" id="dict-refresh">候補を更新</button></p>
   </div>
 
   <div class="field">
@@ -147,7 +201,7 @@ pre { font-family: var(--font-mono); font-size: 12.5px; white-space: pre-wrap; w
 
 <div class="bar">
   <div class="bar-in">
-    <button class="btn" type="button" id="clear">消去</button>
+    <button class="btn" type="button" id="clear">削除</button>
     <button class="btn" type="button" id="copy">本文コピー</button>
     <a class="btn primary" id="send" href="#" target="_blank" rel="noopener" aria-disabled="true">Cosenseで開く</a>
   </div>
@@ -174,39 +228,313 @@ const CATS = {
   comp: { tag: () => '#コンピュータ', title: 'テーマ',
           tpl: () => ['', '[** 目的]', '', '[** やったこと]', '', '[** わかったこと]', '', '[** 参考]', ''] },
 };
+const FIXED_TAGS = ['読書メモ', '知識メモ', '文化創作', 'コンピュータ', '一次創作', 'ブルアカ二次創作', 'アークナイツ二次創作', '二次創作', '感想', '積読', '読書中', '読了'];
 
 const $ = id => document.getElementById(id);
-const state = { cat: 'know', sub: 'ブルアカ二次創作' };
-let lastTemplate = '';
-
 const store = {
-  get() { try { return JSON.parse(localStorage.getItem('yuzhnote-draft') || 'null'); } catch { return null; } },
-  set(v) { try { localStorage.setItem('yuzhnote-draft', JSON.stringify(v)); } catch {} },
-  clear() { try { localStorage.removeItem('yuzhnote-draft'); } catch {} },
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
 };
 
-function templateText() {
-  const c = CATS[state.cat];
-  return c.tpl(state.sub).join('\n');
+/* ===== 下書き（複数） ===== */
+// 保存形式：yuzhnote-drafts = { current: id, list: [下書き…] }
+const DRAFTS_KEY = 'yuzhnote-drafts';
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const blankDraft = (init = {}) => ({
+  id: newId(), cat: 'know', sub: 'ブルアカ二次創作', status: '', title: '', urls: [''], tags: [], body: '', lastTemplate: '',
+  updated: Date.now(), ...init,
+});
+let drafts = [];
+let cur = null; // いま開いている下書き（画面の内容と同じに保つ）
+
+function loadDrafts() {
+  const saved = store.get(DRAFTS_KEY);
+  if (saved?.list?.length) {
+    drafts = saved.list.map(d => ({ ...blankDraft(), ...d, urls: d.urls?.length ? d.urls : [''], tags: d.tags || [] }));
+    cur = drafts.find(d => d.id === saved.current) || drafts[0];
+    return;
+  }
+  // 旧形式（下書き1件だけ）から移す
+  const old = store.get('yuzhnote-draft');
+  cur = blankDraft(old ? {
+    cat: old.cat || 'know', sub: old.sub || 'ブルアカ二次創作', title: old.title || '',
+    urls: Array.isArray(old.urls) && old.urls.length ? old.urls : [old.url || ''],
+    body: old.body || '', lastTemplate: old.lastTemplate || '',
+  } : {});
+  drafts = [cur];
+  saveDrafts();
+  store.del('yuzhnote-draft');
 }
+function saveDrafts() { store.set(DRAFTS_KEY, { current: cur.id, list: drafts }); }
+
+const isEmptyDraft = d => !d.title.trim() && d.urls.every(u => !u.trim()) && !d.tags.length
+  && (!d.body.trim() || d.body === d.lastTemplate);
+
+function draftLabel(d) {
+  const t = new Date(d.updated);
+  const when = `${t.getMonth() + 1}/${t.getDate()} ${pad(t.getHours())}:${pad(t.getMinutes())}`;
+  const url = d.urls.find(u => u.trim());
+  let name = d.title.trim();
+  if (!name && url) { try { name = new URL(url.trim()).hostname.replace(/^www\./, ''); } catch { name = url.trim(); } }
+  if (!name) name = isEmptyDraft(d) ? '（新しいメモ）' : '（無題）';
+  if (name.length > 28) name = name.slice(0, 27) + '…';
+  return `${name}　${when}`;
+}
+
+function renderDraftList() {
+  const sel = $('drafts');
+  sel.textContent = '';
+  for (const d of [...drafts].sort((a, b) => b.updated - a.updated)) {
+    const o = document.createElement('option');
+    o.value = d.id; o.textContent = draftLabel(d); o.selected = d.id === cur.id;
+    sel.append(o);
+  }
+  sel.disabled = drafts.length < 2;
+}
+
+// 画面 → cur
+// 変わったかどうかは、更新日時を除いた中身を前回と比べて判断する
+const snapshot = d => JSON.stringify({ ...d, updated: 0 });
+let lastSnap = '';
+function readForm() {
+  Object.assign(cur, { title: $('title').value, urls: urlValues(), body: $('body').value });
+  const snap = snapshot(cur);
+  const changed = snap !== lastSnap;
+  lastSnap = snap;
+  return changed;
+}
+// cur → 画面
+function writeForm() {
+  $('title').value = cur.title;
+  resetUrls(cur.urls);
+  $('body').value = cur.body;
+  $('tag-input').value = '';
+  renderCats(); renderTags(); applyTemplate();
+}
+
+function switchDraft(id) {
+  readForm();
+  const target = drafts.find(d => d.id === id);
+  if (!target || target === cur) return;
+  // 何も書いていない下書きは、切り替えたら消す
+  if (isEmptyDraft(cur)) drafts = drafts.filter(d => d !== cur);
+  cur = target;
+  writeForm(); readForm(); renderDraftList(); // 切り替えただけでは更新日時を変えない
+  update({ touch: false });
+}
+
+// 新しい下書きを作る（いまの下書きが空ならそれを使う）
+function newDraft(init = {}) {
+  readForm();
+  if (isEmptyDraft(cur)) Object.assign(cur, blankDraft({ id: cur.id, cat: cur.cat, sub: cur.sub }), init);
+  else { cur = blankDraft({ cat: cur.cat, sub: cur.sub, ...init }); drafts.push(cur); }
+  writeForm(); renderDraftList(); update();
+}
+
+/* ===== カテゴリ・テンプレ ===== */
+const templateText = () => CATS[cur.cat].tpl(cur.sub).join('\n');
 
 // 本文がまだテンプレのまま（または空）なら、カテゴリ切り替えでテンプレを差し替える
 function applyTemplate() {
   const body = $('body');
-  if (body.value.trim() === '' || body.value === lastTemplate) {
-    lastTemplate = templateText();
-    body.value = lastTemplate;
+  if (body.value.trim() === '' || body.value === cur.lastTemplate) {
+    cur.lastTemplate = templateText();
+    body.value = cur.lastTemplate;
+    cur.body = body.value;
   }
 }
 
 function renderCats() {
-  document.querySelectorAll('#cats .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === state.cat)));
-  document.querySelectorAll('#subs .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === state.sub)));
-  $('subs').classList.toggle('hidden', state.cat !== 'art');
-  $('book-hint').classList.toggle('hidden', state.cat !== 'book');
-  $('title').placeholder = CATS[state.cat].title;
+  document.querySelectorAll('#cats .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === cur.cat)));
+  document.querySelectorAll('#subs .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === cur.sub)));
+  document.querySelectorAll('#statuses .chip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.st === cur.status)));
+  $('subs').classList.toggle('hidden', cur.cat !== 'art');
+  $('statuses').classList.toggle('hidden', cur.cat !== 'book');
+  $('book-hint').classList.toggle('hidden', cur.cat !== 'book');
+  $('title').placeholder = CATS[cur.cat].title;
 }
 
+/* ===== リンク欄（複数） ===== */
+const urlValues = () => [...document.querySelectorAll('#urls .url-in')].map(i => i.value);
+
+function addUrlRow(value = '', focus = false) {
+  const row = document.createElement('div');
+  row.className = 'url-row';
+  const input = document.createElement('input');
+  Object.assign(input, { type: 'url', className: 'url-in', inputMode: 'url', placeholder: 'https://…', value });
+  const del = document.createElement('button');
+  Object.assign(del, { type: 'button', className: 'btn del', textContent: '×' });
+  del.setAttribute('aria-label', 'このリンクを削除');
+  row.append(input, del);
+  $('urls').append(row);
+  relabelUrls();
+  if (focus) input.focus();
+  return input;
+}
+function relabelUrls() {
+  document.querySelectorAll('#urls .url-in').forEach((i, n) => i.setAttribute('aria-label', `リンク ${n + 1}`));
+}
+// 1件目だけ残して追加欄を消し、values を入れ直す
+function resetUrls(values = ['']) {
+  document.querySelectorAll('#urls .url-row').forEach((r, n) => { if (n > 0) r.remove(); });
+  $('url').value = values[0] || '';
+  values.slice(1).forEach(v => addUrlRow(v));
+}
+
+/* ===== タグ ===== */
+// Cosense のタグの書き方。スペースは _ にする（Cosense では同じページになる）。[ ] # を含むものは [ ] のリンクにする
+const fmtTag = t => /[\[\]#]/.test(t) ? `[${t}]` : '#' + t.replace(/\s+/g, '_');
+// 比べるための正規化：全角半角・大文字小文字・カタカナひらがな・_ とスペースをそろえる
+const norm = s => String(s).normalize('NFKC').toLowerCase().replace(/[_\s]+/g, ' ').trim()
+  .replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+
+let dict = [];      // [{ t: タイトル, l: 被リンク数, n: 正規化, ascii }]
+let dictTitles = new Set();
+function setDict(pairs) {
+  dict = pairs.map(([t, l]) => { const n = norm(t); return { t, l, n, ascii: /^[\x00-\x7f]+$/.test(n) }; })
+    .filter(e => e.n.length >= 1);
+  dictTitles = new Set(dict.map(e => e.n));
+}
+
+const taken = () => new Set([...FIXED_TAGS, ...cur.tags].map(norm));
+
+function chip(text, cls, onClick, title) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip ' + cls; b.textContent = text;
+  if (title) b.title = title;
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function addTag(t) {
+  t = t.trim().replace(/^#/, '');
+  if (!t) return;
+  // 既存ページと表記だけ違うときは、既存の表記にそろえる
+  const hit = dict.find(e => e.n === norm(t));
+  if (hit) t = hit.t;
+  if (taken().has(norm(t))) { setStatus(`「${t}」はもう入っています`); return; }
+  cur.tags.push(t);
+  $('tag-input').value = '';
+  renderTags(); update();
+}
+function removeTag(t) { cur.tags = cur.tags.filter(x => x !== t); renderTags(); update(); }
+
+function renderTags() {
+  const box = $('tags-chosen');
+  box.textContent = '';
+  cur.tags.forEach(t => box.append(chip(t, 'tag', () => removeTag(t), 'タップで外す')));
+  renderSuggest();
+  renderRelated();
+}
+
+// 入力中の文字に合う既存ページ
+function renderSuggest() {
+  const box = $('tag-suggest');
+  box.textContent = '';
+  const q = norm($('tag-input').value.replace(/^#/, ''));
+  if (!q) return;
+  const skip = taken();
+  const hits = dict.filter(e => e.n.includes(q) && !skip.has(e.n))
+    .sort((a, b) => (b.n.startsWith(q) - a.n.startsWith(q)) || (b.l - a.l) || (a.t.length - b.t.length))
+    .slice(0, 8);
+  hits.forEach(e => box.append(chip(e.t, 'cand', () => addTag(e.t), `${e.l}ページからリンク`)));
+  if (!dict.some(e => e.n === q)) box.append(chip(`「${$('tag-input').value.trim().replace(/^#/, '')}」を新しく作る`, 'cand', () => addTag($('tag-input').value)));
+}
+
+// タイトル・本文に出てくる既存ページ（表記ゆれを防ぐため）
+let relatedTimer = null;
+function renderRelated() {
+  clearTimeout(relatedTimer);
+  relatedTimer = setTimeout(() => {
+    const box = $('tag-related');
+    box.textContent = '';
+    const text = norm($('title').value + '\n' + $('body').value.replace(cur.lastTemplate, ''));
+    const skip = taken(); skip.add(norm($('title').value));
+    const hits = !text ? [] : dict.filter(e => {
+      if (skip.has(e.n) || e.n.length < 2 || /^\d+$/.test(e.n)) return false;
+      if (!e.ascii) return text.includes(e.n);
+      if (e.n.length < 3) return false;
+      const i = text.indexOf(e.n);
+      if (i < 0) return false;
+      // 英数字の語は、単語の途中に含まれるものは除く
+      const before = text[i - 1], after = text[i + e.n.length];
+      return !/[a-z0-9]/.test(before || '') && !/[a-z0-9]/.test(after || '');
+    }).sort((a, b) => (b.l - a.l) || (b.t.length - a.t.length)).slice(0, 8);
+    hits.forEach(e => box.append(chip(e.t, 'cand', () => addTag(e.t), `${e.l}ページからリンク`)));
+    $('related-label').classList.toggle('hidden', !hits.length);
+  }, 250);
+}
+
+/* ===== 書誌取得ブリッジ（ブラウザ拡張）経由で、YuzhNote のページ一覧を読む ===== */
+// 別のサイト（github.io）から Cosense の API は読めない（CORS）ため、拡張に取ってきてもらう
+const DICT_KEY = 'yuzhnote-dict';
+const DICT_TTL = 6 * 60 * 60 * 1000;
+let bridge = null; // null=確認中 / true / false
+const waiters = new Map();
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (d?.type === 'yuzh-bridge-pong') bridge = true;
+  if (d?.type === 'yuzh-bridge-res' && waiters.has(d.id)) { waiters.get(d.id)(d); waiters.delete(d.id); }
+});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function hasBridge() {
+  if (bridge === true) return true;
+  bridge = null;
+  window.postMessage({ type: 'yuzh-bridge-ping' }, location.origin);
+  for (let i = 0; i < 15 && bridge === null; i++) await sleep(100);
+  if (bridge === null) bridge = false;
+  return bridge;
+}
+async function bridgeFetch(url) {
+  const id = Math.random().toString(36).slice(2);
+  const res = await new Promise((resolve, reject) => {
+    waiters.set(id, resolve);
+    window.postMessage({ type: 'yuzh-bridge-req', id, url }, location.origin);
+    setTimeout(() => { if (waiters.delete(id)) reject(new Error('拡張からの応答がありません')); }, 30000);
+  });
+  if (!res.ok) throw new Error(res.status === 401 || res.status === 403
+    ? 'Cosense にログインしていないため読めませんでした' : (res.error || `取得に失敗（${res.status}）`));
+  return res.text;
+}
+
+function setDictStatus(t) { $('dict-status').textContent = t; }
+function dictAge(at) {
+  const m = Math.round((Date.now() - at) / 60000);
+  return m < 60 ? `${m}分前` : m < 1440 ? `${Math.round(m / 60)}時間前` : `${Math.round(m / 1440)}日前`;
+}
+
+async function loadDict(force = false) {
+  const cached = store.get(DICT_KEY);
+  if (cached?.titles) setDict(cached.titles);
+  const fresh = cached && Date.now() - cached.at < DICT_TTL;
+  if (fresh && !force) { setDictStatus(`既存のページ ${dict.length} 件から候補を出しています（${dictAge(cached.at)}に取得）。`); return; }
+  setDictStatus('ページ一覧を確認しています…');
+  if (!await hasBridge()) {
+    setDictStatus(cached
+      ? `既存のページ ${dict.length} 件から候補を出しています（${dictAge(cached.at)}に取得。ブリッジが見つからないため更新できません）。`
+      : '既存のページから候補を出すには、書誌取得ブリッジ（1.2.0 以降）が必要です。');
+    return;
+  }
+  try {
+    const pairs = [];
+    for (let skip = 0, count = 1; skip < count && skip < 20000; skip += 1000) {
+      const d = JSON.parse(await bridgeFetch(`https://scrapbox.io/api/pages/${PROJECT}?limit=1000&skip=${skip}&sort=linked`));
+      count = d.count || 0;
+      (d.pages || []).forEach(p => pairs.push([p.title, p.linked || 0]));
+      if (!d.pages?.length) break;
+    }
+    setDict(pairs);
+    store.set(DICT_KEY, { at: Date.now(), titles: pairs });
+    setDictStatus(`既存のページ ${dict.length} 件から候補を出しています（いま取得）。`);
+  } catch (e) {
+    setDictStatus(`ページ一覧を読めませんでした：${e.message}`);
+  }
+  renderTags(); update({ touch: false });
+}
+
+/* ===== 送信する内容 ===== */
 function isYouTube(u) { return /^(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.be)\//.test(u); }
 const TWEET_RE = /^https?:\/\/(?:www\.|mobile\.)?(?:x|twitter)\.com\/\w+\/status\/\d+\S*$/;
 // X のリンクは「thread: URL」の行にしておき、Cosense 側の UserScript が本文に展開する
@@ -214,19 +542,24 @@ const tweetLine = u => `thread: ${u}`;
 
 function buildPage() {
   const title = $('title').value.trim();
-  const lines = [CATS[state.cat].tag(state.sub)];
-  const url = $('url').value.trim();
-  if (url) {
-    // X はスレッドの展開、それ以外は URL だけの行にする（Cosense でリンク先のカード画像になる）
-    if (TWEET_RE.test(url)) lines.push(tweetLine(url));
-    else lines.push(url);
+  const tagLine = [CATS[cur.cat].tag(cur.sub), ...(cur.cat === 'book' && cur.status ? ['#' + cur.status] : []), ...cur.tags.map(fmtTag)];
+  const lines = [tagLine.join(' ')];
+  // X はスレッドの展開、それ以外は URL だけの行にする（Cosense でリンク先のカード画像になる）
+  for (const url of urlValues().map(u => u.trim()).filter(Boolean)) {
+    lines.push(TWEET_RE.test(url) ? tweetLine(url) : url);
   }
   // 本文に X のリンクだけの行があれば、それも展開の対象にする
   lines.push(...$('body').value.replace(/\s+$/, '').split('\n').map(l => TWEET_RE.test(l.trim()) ? tweetLine(l.trim()) : l));
   return { title, body: lines.join('\n') };
 }
 
-function update() {
+function update({ touch = true } = {}) {
+  const changed = readForm();
+  if (changed && touch) cur.updated = Date.now();
+  saveDrafts();
+  const opt = [...$('drafts').options].find(o => o.value === cur.id);
+  if (opt) opt.textContent = draftLabel(cur);
+
   const { title, body } = buildPage();
   $('preview').textContent = (title || '（タイトル未入力）') + '\n' + body;
   const send = $('send');
@@ -235,47 +568,104 @@ function update() {
     : '#';
   send.href = href;
   send.setAttribute('aria-disabled', String(!title));
+  $('title-dup').classList.toggle('hidden', !title || !dictTitles.has(norm(title)));
   if (!title) setStatus('タイトルを入れると送信できます');
   else if (href.length > URL_LIMIT) setStatus('本文が長めです。開けない場合は「本文コピー」で貼り付けてください');
   else setStatus('');
-  store.set({ cat: state.cat, sub: state.sub, title: $('title').value, url: $('url').value, body: $('body').value, lastTemplate });
 }
 
 function setStatus(t) { $('status').textContent = t; }
 
+/* ===== 共有メニュー・ショートカット・ブックマークレットから開いたとき ===== */
+// ?url=…&title=…&text=… を受け取って新しい下書きにする
+function takeShared() {
+  const q = new URLSearchParams(location.search);
+  if (!['url', 'title', 'text'].some(k => q.get(k))) return '';
+  let url = (q.get('url') || '').trim();
+  let text = (q.get('text') || '').trim();
+  const title = (q.get('title') || '').trim();
+  // Android はリンクを text に入れて渡すことが多い
+  if (!url) { const m = text.match(/https?:\/\/\S+/); if (m) url = m[0]; }
+  if (url) text = text.replace(url, '').trim();
+  history.replaceState(null, '', location.pathname); // 再読み込みで二重に入らないように
+
+  // 同じリンクの下書きがあれば、それを開く
+  const same = url && drafts.find(d => d.urls.some(u => u.trim() === url));
+  if (same) { cur = same; writeForm(); return '同じリンクの下書きを開きました'; }
+
+  readForm();
+  const init = { urls: [url], title: title || (text && text.length <= 80 && !text.includes('\n') ? text : '') };
+  if (isEmptyDraft(cur)) Object.assign(cur, blankDraft({ id: cur.id, cat: 'know' }), init);
+  else { cur = blankDraft({ cat: 'know', ...init }); drafts.push(cur); }
+  writeForm();
+  // 選んだ文章などが一緒に来たら、本文の最後に引用として入れる
+  if (text && text !== cur.title) {
+    $('body').value = $('body').value.replace(/\s*$/, '\n') + text.split('\n').map(l => '> ' + l).join('\n') + '\n';
+  }
+  return '共有されたリンクで新しいメモを作りました';
+}
+
+/* ===== イベント ===== */
 $('cats').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
-  state.cat = b.dataset.c; renderCats(); applyTemplate(); update();
+  cur.cat = b.dataset.c; renderCats(); applyTemplate(); renderTags(); update();
 });
 $('subs').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
-  state.sub = b.dataset.s; renderCats(); applyTemplate(); update();
+  cur.sub = b.dataset.s; renderCats(); applyTemplate(); renderTags(); update();
 });
-['title', 'url', 'body'].forEach(id => $(id).addEventListener('input', update));
+$('statuses').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  cur.status = b.dataset.st; renderCats(); update();
+});
+['title', 'body'].forEach(id => $(id).addEventListener('input', () => { update(); renderRelated(); }));
+$('urls').addEventListener('input', () => update());
+$('urls').addEventListener('click', e => {
+  const del = e.target.closest('.btn.del'); if (!del) return;
+  del.closest('.url-row').remove(); relabelUrls(); update();
+});
+$('add-url').addEventListener('click', () => { addUrlRow('', true); update(); });
 
+$('tag-input').addEventListener('input', renderSuggest);
+$('tag-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || e.isComposing) return;
+  e.preventDefault();
+  addTag($('tag-input').value);
+});
+$('dict-refresh').addEventListener('click', () => loadDict(true));
+
+$('drafts').addEventListener('change', e => switchDraft(e.target.value));
+$('new-draft').addEventListener('click', () => { newDraft(); setStatus('新しいメモを作りました'); $('title').focus(); });
+
+// 「削除」：いまの下書きを消して、次に新しい下書きを開く
 $('clear').addEventListener('click', () => {
-  $('title').value = ''; $('url').value = ''; $('body').value = '';
-  lastTemplate = ''; applyTemplate(); update(); setStatus('消去しました');
+  readForm();
+  if (!isEmptyDraft(cur) && !confirm('この下書きを削除しますか？')) return;
+  drafts = drafts.filter(d => d !== cur);
+  if (drafts.length) cur = [...drafts].sort((a, b) => b.updated - a.updated)[0];
+  else { cur = blankDraft(); drafts = [cur]; }
+  writeForm(); renderDraftList(); update({ touch: false });
+  setStatus(drafts.length > 1 ? '削除しました。ほかの下書きを開いています' : '削除しました');
 });
 $('copy').addEventListener('click', async () => {
-  const { title, body } = buildPage();
+  const { body } = buildPage();
   try { await navigator.clipboard.writeText(body); setStatus('本文をコピーしました'); }
   catch { setStatus('コピーできませんでした。「送信される内容を確認」から選択してコピーしてください'); }
 });
-// 送信後は下書きを残したまま（ページが開けなかったとき用）。消すときは「消去」
+// 送信後は下書きを残したまま（ページが開けなかったとき用）。消すときは「削除」
 $('send').addEventListener('click', e => {
   if ($('send').getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; }
-  setStatus('Cosense を開きました。うまくできたら「消去」で下書きを消せます');
+  setStatus('Cosense を開きました。うまくできたら「削除」で下書きを消せます');
 });
 
-// 起動時：下書きがあれば復元、なければ知識メモの例を表示
-const saved = store.get();
-if (saved) {
-  Object.assign(state, { cat: saved.cat || 'know', sub: saved.sub || state.sub });
-  $('title').value = saved.title || ''; $('url').value = saved.url || '';
-  $('body').value = saved.body || ''; lastTemplate = saved.lastTemplate || '';
-}
-renderCats(); applyTemplate(); update();
+// 起動：保存した下書きを画面に出してから、共有されたものがあれば受け取る
+loadDrafts();
+writeForm(); readForm();
+const shared = takeShared();
+renderDraftList();
+update({ touch: !!shared });
+if (shared) setStatus(shared);
+loadDict();
 </script>
 </body>
 </html>

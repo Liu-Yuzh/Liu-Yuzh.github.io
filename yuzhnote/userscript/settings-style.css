@@ -20,6 +20,10 @@
 .line a[type="hashTag"][data-page-title="アークナイツ二次創作"],
 .line a[type="hashTag"][data-page-title="二次創作"],
 .line a[type="hashTag"][data-page-title="感想"]               { background: #fff4dc; color: #8a5a00; }
+/* 読書の状態 */
+.line a[type="hashTag"][data-page-title="積読"]               { background: #fff4dc; color: #8a5a00; }
+.line a[type="hashTag"][data-page-title="読書中"]             { background: #e3f0ff; color: #1d5fa8; }
+.line a[type="hashTag"][data-page-title="読了"]               { background: #e5f6ea; color: #23784a; }
 
 /* 本棚（読書メモページで UserScript が表示） */
 #yuzh-bookshelf { margin: 24px 0; }
@@ -59,6 +63,24 @@
 }
 #yuzh-bookshelf .yuzh-book-date { font-size: 11px; color: #888; }
 
+/* 本棚：読書の状態で絞り込むタブと、表紙の上の状態ラベル */
+#yuzh-bookshelf .yuzh-shelf-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+#yuzh-bookshelf .yuzh-shelf-tabs button {
+  padding: 5px 12px; border-radius: 999px; border: 1px solid #d8dee7; background: #fff;
+  color: #455; font-size: 13px; cursor: pointer;
+}
+#yuzh-bookshelf .yuzh-shelf-tabs button[aria-pressed="true"] { background: #e3f0ff; border-color: #1d5fa8; color: #1d5fa8; font-weight: bold; }
+#yuzh-bookshelf .yuzh-book { position: relative; }
+#yuzh-bookshelf .yuzh-book[hidden] { display: none; }
+#yuzh-bookshelf .yuzh-book-status {
+  position: absolute; top: 6px; left: 6px; z-index: 1;
+  padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: bold;
+  background: rgba(255,255,255,.92); color: #455; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+#yuzh-bookshelf .yuzh-book-status[data-s="読書中"] { color: #1d5fa8; }
+#yuzh-bookshelf .yuzh-book-status[data-s="読了"]   { color: #23784a; }
+#yuzh-bookshelf .yuzh-book-status[data-s="積読"]   { color: #8a5a00; }
+
 /* スマホで読みやすく：本文を少し大きく、行間を広く */
 @media (max-width: 767px) {
   .page .line { font-size: 16px; line-height: 1.75; }
@@ -72,6 +94,17 @@
   opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 10000;
 }
 #yuzh-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* 同じリンクがほかのページにもあるときの箱（yuzh-dupcheck） */
+#yuzh-dup {
+  margin: 0 0 12px; padding: 10px 12px; border-radius: 10px;
+  background: #fff8e6; border: 1px solid #f0d9a0; color: #5a4500; font-size: 14px;
+}
+#yuzh-dup .yuzh-dup-head { font-weight: bold; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#yuzh-dup .yuzh-dup-head button { border: 0; background: none; font-size: 18px; line-height: 1; color: inherit; cursor: pointer; padding: 0 4px; }
+#yuzh-dup .yuzh-dup-row { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+#yuzh-dup .yuzh-dup-url { font-size: 12px; color: #8a7a50; overflow-wrap: anywhere; }
+#yuzh-dup a { color: #1d5fa8; }
 
 /* 書誌の候補を選ぶ画面 */
 #yuzh-picker {
