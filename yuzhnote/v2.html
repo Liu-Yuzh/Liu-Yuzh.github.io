@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e1e24">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>YuzhNote 2.0</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=IBM+Plex+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+/* 左にメモ一覧、右にエディタ。1行目がタイトル（Cosense と同じ） */
+:root {
+  --bg: #1e1e24; --side: #18181d; --panel: #26262e; --ink: #dcdde3; --muted: #8a8c99; --line: #33343f;
+  --accent: #a68bfa; --link: #b9a5ff; --code: #2c2c36;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --bg: #ffffff; --side: #f6f6f8; --panel: #ececf1; --ink: #222229; --muted: #6c6e7a; --line: #e0e0e6;
+          --accent: #7048e8; --link: #6741d9; --code: #f1f1f5; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font-body); }
+body { display: grid; grid-template-columns: 260px 1fr; height: 100dvh; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* サイドバー */
+aside { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0;
+        padding-top: env(safe-area-inset-top); }
+.side-head { display: flex; gap: 6px; padding: 12px; align-items: center; }
+.side-head h1 { font-size: 14px; margin: 0; flex: 1; }
+.side-head a { font-size: 12px; color: var(--muted); }
+.icon { background: none; border: 0; border-radius: 6px; padding: 6px 8px; color: var(--muted); font-size: 15px; }
+.icon:hover { background: var(--panel); color: var(--ink); }
+#search { margin: 0 12px 8px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg);
+          color: var(--ink); font: inherit; font-size: 14px; }
+#list { list-style: none; margin: 0; padding: 0 6px 12px; overflow-y: auto; flex: 1; }
+#list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
+               font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#list button:hover { background: var(--panel); color: var(--ink); }
+#list button[aria-current="true"] { background: var(--panel); color: var(--ink); font-weight: 700; }
+
+/* エディタ */
+section { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding-top: env(safe-area-inset-top); }
+.top { display: flex; align-items: center; gap: 4px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.top .crumb { flex: 1; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#toggle-side { display: none; }
+.pane { flex: 1; overflow-y: auto; min-height: 0; }
+.doc { max-width: 760px; margin: 0 auto; padding: 28px 28px 80px; }
+#editor { display: block; width: 100%; min-height: 70vh; border: 0; resize: none; background: none; color: var(--ink);
+          font: 16px/1.75 var(--font-body); outline: none; field-sizing: content; }
+#view { font-size: 16px; line-height: 1.75; word-break: break-word; }
+#view .title { font-size: 26px; font-weight: 700; margin: 0 0 16px; }
+#view .line { min-height: 1.75em; }
+#view .bullet::before { content: "•"; color: var(--muted); display: inline-block; width: 1.2em; margin-left: -1.2em; }
+#view h2 { font-size: 21px; margin: 18px 0 4px; } #view h3 { font-size: 18px; margin: 14px 0 4px; } #view h4 { font-size: 16px; margin: 10px 0 2px; }
+#view a { color: var(--link); text-decoration: none; } #view a:hover { text-decoration: underline; }
+#view a.new { opacity: .65; }
+#view a.ext::after { content: " ↗"; font-size: 11px; }
+#view code, #view pre { font-family: var(--font-mono); font-size: 13.5px; background: var(--code); border-radius: 4px; }
+#view code { padding: 1px 5px; }
+#view pre { padding: 10px 12px; margin: 4px 0; white-space: pre-wrap; }
+#view pre .cap { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 4px; }
+#view img { max-width: 100%; max-height: 360px; border-radius: 6px; display: block; }
+.backlinks { margin-top: 40px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 14px; }
+.backlinks h2 { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
+.backlinks button { display: block; background: none; border: 0; padding: 3px 0; color: var(--link); text-align: left; }
+.hidden { display: none !important; }
+
+/* [ を打ったときの候補 */
+#suggest { position: fixed; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+           box-shadow: 0 8px 24px #0006; list-style: none; margin: 0; padding: 4px; max-height: 240px; overflow-y: auto; min-width: 220px; }
+#suggest li { padding: 6px 10px; border-radius: 5px; font-size: 14px; cursor: pointer; }
+#suggest li[aria-selected="true"] { background: var(--accent); color: #fff; }
+#suggest li small { color: var(--muted); margin-left: 6px; }
+#suggest li[aria-selected="true"] small { color: #fffc; }
+
+.bottom { display: flex; gap: 8px; align-items: center; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+          border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.bottom .grow { flex: 1; }
+.btn { font-size: 13px; border-radius: 6px; padding: 6px 12px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.btn[aria-disabled="true"] { opacity: .4; pointer-events: none; }
+
+/* スマホ：サイドバーは引き出し */
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; }
+  aside { position: fixed; inset: 0 25% 0 0; z-index: 5; box-shadow: 4px 0 24px #0008; transform: translateX(-105%); transition: transform .2s; }
+  body.side-open aside { transform: none; }
+  #toggle-side { display: inline-block; }
+  .doc { padding: 18px 16px 80px; }
+}
+</style>
+</head>
+<body>
+<aside>
+  <div class="side-head">
+    <h1>YuzhNote 2.0</h1>
+    <a href="./">1.0 へ</a>
+    <button class="icon" type="button" id="new" title="新しいメモ" aria-label="新しいメモ">＋</button>
+  </div>
+  <input id="search" type="search" placeholder="メモを検索" aria-label="メモを検索">
+  <ul id="list"></ul>
+</aside>
+
+<section>
+  <div class="top">
+    <button class="icon" type="button" id="toggle-side" aria-label="メモ一覧">☰</button>
+    <span class="crumb" id="crumb"></span>
+    <button class="icon" type="button" id="mode" title="編集／閲覧の切り替え (Ctrl+E)">閲覧</button>
+  </div>
+  <div class="pane" id="pane">
+    <div class="doc">
+      <textarea id="editor" spellcheck="false" aria-label="本文（1行目がタイトル）" placeholder="1行目がタイトルです&#10;&#10;[ でページへのリンク、#タグ、[** 見出し]、行頭スペースで箇条書き"></textarea>
+      <div id="view" class="hidden"></div>
+      <div class="backlinks hidden" id="backlinks"><h2>このメモへのリンク</h2><div id="backlist"></div></div>
+    </div>
+  </div>
+  <div class="bottom">
+    <span class="grow" id="info"></span>
+    <button class="btn" type="button" id="del">削除</button>
+    <button class="btn" type="button" id="copy">本文コピー</button>
+    <a class="btn primary" id="send" href="#" target="_blank" rel="noopener">Cosenseで開く</a>
+  </div>
+</section>
+<ul id="suggest" class="hidden" role="listbox"></ul>
+
+<script>
+const PROJECT = 'YuzhNote';
+const KEY = 'yuzhnote-v2-notes';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const norm = s => s.trim().toLowerCase().replace(/[\s_]+/g, ' ');
+const titleOf = n => n.text.split('\n')[0].trim();
+
+/* ===== メモの保存（この端末の localStorage） ===== */
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+let notes = store.get(KEY)?.list || [];
+let cur = null;
+let mode = 'edit';
+const save = () => store.set(KEY, { current: cur?.id, list: notes });
+const findByTitle = t => notes.find(n => norm(titleOf(n)) === norm(t));
+
+function create(text = '') {
+  const n = { id: newId(), text, updated: Date.now() };
+  notes.push(n);
+  return n;
+}
+function open(n, m = mode) {
+  // 何も書いていないメモは、離れたら消す
+  if (cur && cur !== n && !cur.text.trim()) notes = notes.filter(x => x !== cur);
+  cur = n; save();
+  $('editor').value = n.text;
+  document.body.classList.remove('side-open');
+  setMode(m); renderList(); refresh();
+}
+
+/* ===== 1.0 の候補辞書（Cosense の既存ページ名）を借りる ===== */
+const cosense = new Set((store.get('yuzhnote-dict')?.titles || []).map(([t]) => t));
+
+/* ===== Cosense 記法を表示用 HTML にする（よく使うものだけ） ===== */
+// shortcut: 表・数式・アイコン記法などは素の文字のまま出す。使いたくなったら足す
+const IMG = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i;
+const isUrl = s => /^https?:\/\//.test(s);
+function pageLink(t) {
+  const local = findByTitle(t);
+  const cls = local ? '' : cosense.has(t) ? 'ext' : 'new';
+  return `<a href="#" class="${cls}" data-page="${esc(t)}">${esc(t)}</a>`;
+}
+function urlLink(u, label) {
+  if (!label && IMG.test(u)) return `<img src="${esc(u)}" alt="" loading="lazy">`;
+  return `<a href="${esc(u)}" target="_blank" rel="noopener" class="ext">${esc(label || u)}</a>`;
+}
+function bracket(inner) {
+  let m;
+  if ((m = inner.match(/^(\*+)\s+(.*)$/))) {
+    const lv = m[1].length;
+    return lv >= 2 ? { block: `h${Math.max(2, 6 - lv)}`, html: inline(m[2]) } : `<strong>${inline(m[2])}</strong>`;
+  }
+  if ((m = inner.match(/^\/\s+(.*)$/))) return `<em>${inline(m[1])}</em>`;
+  if ((m = inner.match(/^-\s+(.*)$/))) return `<s>${inline(m[1])}</s>`;
+  if ((m = inner.match(/^(https?:\/\/\S+)\s+(.+)$/))) return urlLink(m[1], m[2]);
+  if ((m = inner.match(/^(.+)\s+(https?:\/\/\S+)$/))) return urlLink(m[2], m[1]);
+  if (isUrl(inner)) return urlLink(inner);
+  return pageLink(inner);
+}
+function inline(s) {
+  let out = '', heading = null;
+  const re = /`([^`]+)`|\[\[([^\]]+)\]\]|\[([^\[\]]+)\]|(?<![^\s　])#(\S+)|(https?:\/\/[^\s\]]+)/g;
+  let last = 0, m;
+  while ((m = re.exec(s))) {
+    out += esc(s.slice(last, m.index));
+    if (m[1] != null) out += `<code>${esc(m[1])}</code>`;
+    else if (m[2] != null) out += `<strong>${inline(m[2])}</strong>`;
+    else if (m[3] != null) {
+      const r = bracket(m[3]);
+      if (typeof r === 'object') { heading = r.block; out += r.html; } else out += r;
+    }
+    else if (m[4] != null) out += pageLink(m[4]).replace('>' + esc(m[4]) + '<', '>#' + esc(m[4]) + '<');
+    else out += urlLink(m[5]);
+    last = re.lastIndex;
+  }
+  out += esc(s.slice(last));
+  return heading ? `<${heading}>${out}</${heading}>` : out;
+}
+function render(text) {
+  const lines = text.split('\n');
+  let html = `<p class="title">${esc(lines[0] || '（無題）')}</p>`;
+  for (let i = 1; i < lines.length; i++) {
+    const [, sp, rest] = lines[i].match(/^([ \t　]*)(.*)$/);
+    const ind = sp.length;
+    // code:ファイル名 の下の、より深くインデントされた行はコードブロック
+    const code = rest.match(/^code:(.+)$/);
+    if (code) {
+      const body = [];
+      while (i + 1 < lines.length && lines[i + 1].trim() && /^[ \t　]*/.exec(lines[i + 1])[0].length > ind) body.push(lines[++i].slice(ind + 1));
+      html += `<pre style="margin-left:${ind * 1.4}em"><span class="cap">${esc(code[1])}</span>${esc(body.join('\n'))}</pre>`;
+      continue;
+    }
+    html += `<div class="line${ind ? ' bullet' : ''}" style="margin-left:${ind * 1.4}em">${inline(rest)}</div>`;
+  }
+  return html;
+}
+
+/* ===== 画面 ===== */
+function renderList() {
+  const q = norm($('search').value);
+  const list = $('list');
+  list.textContent = '';
+  for (const n of [...notes].sort((a, b) => b.updated - a.updated)) {
+    if (q && !norm(n.text).includes(q)) continue;
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = titleOf(n) || '（無題）';
+    b.setAttribute('aria-current', String(n === cur));
+    b.onclick = () => open(n);
+    li.append(b); list.append(li);
+  }
+}
+function refresh() {
+  const title = titleOf(cur);
+  const body = cur.text.split('\n').slice(1).join('\n').replace(/^\n+/, '');
+  $('crumb').textContent = title || '（無題）';
+  document.title = `${title || '無題'} - YuzhNote 2.0`;
+  $('info').textContent = `${cur.text.length} 文字`;
+  const send = $('send');
+  send.href = title ? `https://scrapbox.io/${PROJECT}/${encodeURIComponent(title)}?body=${encodeURIComponent(body)}` : '#';
+  send.setAttribute('aria-disabled', String(!title));
+  // バックリンク：[タイトル] か #タイトル で参照している他のメモ
+  const back = !title ? [] : notes.filter(n => n !== cur && (n.text.includes(`[${title}]`) || new RegExp(`(^|\\s)#${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'm').test(n.text)));
+  $('backlinks').classList.toggle('hidden', !back.length);
+  $('backlist').textContent = '';
+  back.forEach(n => { const b = document.createElement('button'); b.type = 'button'; b.textContent = titleOf(n); b.onclick = () => open(n); $('backlist').append(b); });
+  if (mode === 'view') $('view').innerHTML = render(cur.text);
+}
+function setMode(m) {
+  mode = m;
+  $('editor').classList.toggle('hidden', m === 'view');
+  $('view').classList.toggle('hidden', m === 'edit');
+  $('mode').textContent = m === 'edit' ? '閲覧' : '編集';
+  if (m === 'view') $('view').innerHTML = render(cur.text);
+  else $('editor').focus();
+}
+
+/* ===== 入力 ===== */
+let saveTimer;
+$('editor').addEventListener('input', () => {
+  cur.text = $('editor').value; cur.updated = Date.now();
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => { save(); renderList(); }, 300);
+  refresh(); suggest();
+});
+
+// [ の後に打った文字から、メモと Cosense のページ名を候補に出す
+let sugg = [], sel = 0;
+function linkQuery() {
+  const ed = $('editor');
+  const before = ed.value.slice(0, ed.selectionStart);
+  const m = before.match(/\[([^\[\]\n]*)$/);
+  return m && !/^[*\/-]\s/.test(m[1]) ? m[1] : null;
+}
+function suggest() {
+  const q = linkQuery();
+  const box = $('suggest');
+  if (q == null) { box.classList.add('hidden'); sugg = []; return; }
+  const nq = norm(q);
+  const local = notes.filter(n => n !== cur).map(titleOf).filter(Boolean);
+  const all = [...new Set([...local, ...cosense])];
+  sugg = all.filter(t => norm(t).includes(nq)).slice(0, 8);
+  if (q.trim() && !all.some(t => norm(t) === nq)) sugg.push(q.trim());
+  if (!sugg.length) { box.classList.add('hidden'); return; }
+  sel = 0;
+  box.innerHTML = sugg.map((t, i) => `<li role="option" data-i="${i}">${esc(t)}<small>${local.includes(t) ? 'メモ' : cosense.has(t) ? 'Cosense' : '新規'}</small></li>`).join('');
+  markSel();
+  // 候補はキャレットのある行の下に出す（textarea 内の正確な位置は取れないので行数から概算）
+  const ed = $('editor'), r = ed.getBoundingClientRect();
+  const row = ed.value.slice(0, ed.selectionStart).split('\n').length;
+  box.style.left = r.left + 'px';
+  box.style.top = Math.min(r.top + row * 28 + 4, innerHeight - 250) + 'px';
+  box.classList.remove('hidden');
+}
+function markSel() { [...$('suggest').children].forEach((li, i) => li.setAttribute('aria-selected', String(i === sel))); }
+function pick(i) {
+  const ed = $('editor'), q = linkQuery();
+  const start = ed.selectionStart - q.length;
+  const after = ed.value.slice(ed.selectionStart).startsWith(']') ? 1 : 0;
+  ed.setRangeText(sugg[i] + ']', start, ed.selectionStart + after, 'end');
+  $('suggest').classList.add('hidden'); sugg = [];
+  ed.dispatchEvent(new Event('input'));
+}
+$('suggest').addEventListener('mousedown', e => { const li = e.target.closest('li'); if (li) { e.preventDefault(); pick(+li.dataset.i); } });
+$('editor').addEventListener('keydown', e => {
+  if (sugg.length && !$('suggest').classList.contains('hidden')) {
+    if (e.key === 'ArrowDown') { sel = (sel + 1) % sugg.length; markSel(); e.preventDefault(); return; }
+    if (e.key === 'ArrowUp') { sel = (sel - 1 + sugg.length) % sugg.length; markSel(); e.preventDefault(); return; }
+    if (e.key === 'Enter' || e.key === 'Tab') { pick(sel); e.preventDefault(); return; }
+    if (e.key === 'Escape') { $('suggest').classList.add('hidden'); sugg = []; return; }
+  }
+  // Tab で行のインデント（Cosense の箇条書き）
+  if (e.key === 'Tab' && !e.isComposing) {
+    e.preventDefault();
+    const ed = e.target, ls = ed.value.lastIndexOf('\n', ed.selectionStart - 1) + 1;
+    if (e.shiftKey) { if (ed.value[ls] === ' ') ed.setRangeText('', ls, ls + 1, 'end'); }
+    else ed.setRangeText(' ', ls, ls, 'end');
+    ed.dispatchEvent(new Event('input'));
+  }
+  // Enter で前の行のインデントを引き継ぐ
+  if (e.key === 'Enter' && !e.isComposing && !e.shiftKey) {
+    const ed = e.target, ls = ed.value.lastIndexOf('\n', ed.selectionStart - 1) + 1;
+    const ind = ed.value.slice(ls).match(/^[ \t　]*/)[0];
+    if (ind && ls > 0) { e.preventDefault(); ed.setRangeText('\n' + ind, ed.selectionStart, ed.selectionEnd, 'end'); ed.dispatchEvent(new Event('input')); }
+  }
+});
+$('editor').addEventListener('blur', () => setTimeout(() => $('suggest').classList.add('hidden'), 150));
+
+// 閲覧モードのリンク：メモがあれば開く／Cosense にあればそちらを開く／どちらもなければ新しいメモを作る
+$('view').addEventListener('click', e => {
+  const a = e.target.closest('a[data-page]');
+  if (!a) return;
+  e.preventDefault();
+  const t = a.dataset.page, local = findByTitle(t);
+  if (local) open(local);
+  else if (cosense.has(t)) window.open(`https://scrapbox.io/${PROJECT}/${encodeURIComponent(t)}`, '_blank', 'noopener');
+  else open(create(t + '\n\n'), 'edit');
+});
+
+$('new').onclick = () => open(create(), 'edit');
+$('mode').onclick = () => setMode(mode === 'edit' ? 'view' : 'edit');
+$('search').oninput = renderList;
+$('toggle-side').onclick = () => document.body.classList.toggle('side-open');
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(cur.text); $('info').textContent = 'コピーしました'; }
+  catch { $('info').textContent = 'コピーできませんでした'; }
+};
+$('del').onclick = () => {
+  if (cur.text.trim() && !confirm(`「${titleOf(cur) || '無題'}」を削除しますか？`)) return;
+  notes = notes.filter(n => n !== cur); cur = null;
+  open(notes.sort((a, b) => b.updated - a.updated)[0] || create());
+};
+document.addEventListener('keydown', e => {
+  if (!(e.metaKey || e.ctrlKey)) return;
+  if (e.key === 'e') { e.preventDefault(); setMode(mode === 'edit' ? 'view' : 'edit'); }
+});
+
+const saved = store.get(KEY);
+open(notes.find(n => n.id === saved?.current) || notes[0] || create());
+</script>
+</body>
+</html>
