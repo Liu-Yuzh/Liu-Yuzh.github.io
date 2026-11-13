@@ -39,10 +39,12 @@ aside { background: var(--side); border-right: 1px solid var(--line); display: f
 .icon:hover { background: var(--panel); color: var(--ink); }
 #search { margin: 0 12px 8px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg);
           color: var(--ink); font: inherit; font-size: 14px; }
-#list { list-style: none; margin: 0; padding: 0 6px 12px; overflow-y: auto; flex: 1; }
-#list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
+#list, #v1list { list-style: none; margin: 0; padding: 0 6px 12px; overflow-y: auto; flex: 1; }
+#v1 { border-top: 1px solid var(--line); padding: 8px 0 0; max-height: 40%; overflow-y: auto; }
+#v1 summary { padding: 4px 16px 8px; font-size: 12px; color: var(--muted); cursor: pointer; }
+#list button, #v1list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
                font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#list button:hover { background: var(--panel); color: var(--ink); }
+#list button:hover, #v1list button:hover { background: var(--panel); color: var(--ink); }
 #list button[aria-current="true"] { background: var(--panel); color: var(--ink); font-weight: 700; }
 
 /* エディタ */
@@ -67,6 +69,13 @@ section { display: flex; flex-direction: column; min-width: 0; min-height: 0; pa
 #view pre { padding: 10px 12px; margin: 4px 0; white-space: pre-wrap; }
 #view pre .cap { display: block; color: var(--muted); font-size: 11.5px; margin-bottom: 4px; }
 #view img { max-width: 100%; max-height: 360px; border-radius: 6px; display: block; }
+#view span.icon { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin: 0 1px; }
+#view img.icon { display: inline-block; height: 1.3em; width: auto; border-radius: 3px; vertical-align: -0.25em; margin: 0 1px; }
+#view .table { margin: 4px 0; overflow-x: auto; }
+#view .table .cap { display: block; color: var(--muted); font-size: 11.5px; }
+#view table { border-collapse: collapse; font-size: 14.5px; }
+#view td { border: 1px solid var(--line); padding: 4px 10px; }
+#view tr:first-child td { background: var(--code); font-weight: 700; }
 .backlinks { margin-top: 40px; border-top: 1px solid var(--line); padding-top: 12px; font-size: 14px; }
 .backlinks h2 { font-size: 13px; color: var(--muted); margin: 0 0 6px; }
 .backlinks button { display: block; background: none; border: 0; padding: 3px 0; color: var(--link); text-align: left; }
@@ -106,6 +115,10 @@ section { display: flex; flex-direction: column; min-width: 0; min-height: 0; pa
   </div>
   <input id="search" type="search" placeholder="メモを検索" aria-label="メモを検索">
   <ul id="list"></ul>
+  <details id="v1" class="hidden">
+    <summary>1.0 の下書き</summary>
+    <ul id="v1list"></ul>
+  </details>
 </aside>
 
 <section>
@@ -164,11 +177,34 @@ function open(n, m = mode) {
   setMode(m); renderList(); refresh();
 }
 
+/* ===== 1.0 の下書きを読む ===== */
+// 開くと 2.0 のメモに写す（from に元の id を残し、二重に写さない）。1.0 側の下書きはそのまま
+const V1_TAG = { book: '#読書メモ', know: '#知識メモ', comp: '#コンピュータ' };
+const v1Tag = t => /[\[\]#]/.test(t) ? `[${t}]` : '#' + t.replace(/\s+/g, '_');
+function v1Text(d) {
+  const tags = [d.cat === 'art' ? `#文化創作 #${d.sub}` : V1_TAG[d.cat] || '',
+    ...(d.cat === 'book' && d.status ? ['#' + d.status] : []), ...(d.tags || []).map(v1Tag)].filter(Boolean);
+  const body = d.body === d.lastTemplate ? '' : (d.body || '').replace(/\s+$/, '');
+  return [d.title || '', tags.join(' '), ...(d.urls || []).map(u => u.trim()).filter(Boolean), ...(body ? [body] : [])].join('\n');
+}
+function renderV1() {
+  const list = (store.get('yuzhnote-drafts')?.list || [])
+    .filter(d => !notes.some(n => n.from === d.id) && (d.title?.trim() || d.urls?.some(u => u.trim()) || (d.body?.trim() && d.body !== d.lastTemplate)));
+  $('v1').classList.toggle('hidden', !list.length);
+  $('v1list').textContent = '';
+  for (const d of list.sort((a, b) => b.updated - a.updated)) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = d.title?.trim() || '（無題）';
+    b.onclick = () => { const n = create(v1Text(d)); n.from = d.id; n.updated = d.updated || Date.now(); open(n, 'view'); renderV1(); };
+    li.append(b); $('v1list').append(li);
+  }
+}
+
 /* ===== 1.0 の候補辞書（Cosense の既存ページ名）を借りる ===== */
 const cosense = new Set((store.get('yuzhnote-dict')?.titles || []).map(([t]) => t));
 
 /* ===== Cosense 記法を表示用 HTML にする（よく使うものだけ） ===== */
-// shortcut: 表・数式・アイコン記法などは素の文字のまま出す。使いたくなったら足す
 const IMG = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i;
 const isUrl = s => /^https?:\/\//.test(s);
 function pageLink(t) {
@@ -180,8 +216,17 @@ function urlLink(u, label) {
   if (!label && IMG.test(u)) return `<img src="${esc(u)}" alt="" loading="lazy">`;
   return `<a href="${esc(u)}" target="_blank" rel="noopener" class="ext">${esc(label || u)}</a>`;
 }
+// [名前.icon] [/別プロジェクト/名前.icon] [名前.icon*3]
+function icon(m) {
+  const proj = m[1] ? m[1].slice(1, -1) : PROJECT;
+  const src = `https://scrapbox.io/api/pages/${encodeURIComponent(proj)}/${encodeURIComponent(m[2])}/icon`;
+  const tag = `<span class="icon" data-icon="${src}" title="${esc(m[2])}">${esc(m[2])}</span>`;
+  return tag.repeat(Math.min(+(m[3] || 1), 100));
+}
 function bracket(inner) {
   let m;
+  if ((m = inner.match(/^(\/[^\/\s]+\/)?([^\/].*?)\.icon(?:\*(\d+))?$/))) return icon(m);
+  if ((m = inner.match(/^\$\s+(.*)$/))) return `<span class="math" data-tex="${esc(m[1])}">${esc(m[1])}</span>`;
   if ((m = inner.match(/^(\*+)\s+(.*)$/))) {
     const lv = m[1].length;
     return lv >= 2 ? { block: `h${Math.max(2, 6 - lv)}`, html: inline(m[2]) } : `<strong>${inline(m[2])}</strong>`;
@@ -218,12 +263,15 @@ function render(text) {
   for (let i = 1; i < lines.length; i++) {
     const [, sp, rest] = lines[i].match(/^([ \t　]*)(.*)$/);
     const ind = sp.length;
-    // code:ファイル名 の下の、より深くインデントされた行はコードブロック
-    const code = rest.match(/^code:(.+)$/);
-    if (code) {
+    // code:名前 / table:名前 の下の、より深くインデントされた行はそのブロックの中身
+    const blk = rest.match(/^(code|table):(.+)$/);
+    if (blk) {
       const body = [];
       while (i + 1 < lines.length && lines[i + 1].trim() && /^[ \t　]*/.exec(lines[i + 1])[0].length > ind) body.push(lines[++i].slice(ind + 1));
-      html += `<pre style="margin-left:${ind * 1.4}em"><span class="cap">${esc(code[1])}</span>${esc(body.join('\n'))}</pre>`;
+      const style = `margin-left:${ind * 1.4}em`;
+      if (blk[1] === 'code') html += `<pre style="${style}"><span class="cap">${esc(blk[2])}</span>${esc(body.join('\n'))}</pre>`;
+      else html += `<div class="table" style="${style}"><span class="cap">${esc(blk[2])}</span><table>${
+        body.map(r => `<tr>${r.split('\t').map(c => `<td>${inline(c)}</td>`).join('')}</tr>`).join('')}</table></div>`;
       continue;
     }
     html += `<div class="line${ind ? ' bullet' : ''}" style="margin-left:${ind * 1.4}em">${inline(rest)}</div>`;
@@ -261,14 +309,73 @@ function refresh() {
   $('backlinks').classList.toggle('hidden', !back.length);
   $('backlist').textContent = '';
   back.forEach(n => { const b = document.createElement('button'); b.type = 'button'; b.textContent = titleOf(n); b.onclick = () => open(n); $('backlist').append(b); });
-  if (mode === 'view') $('view').innerHTML = render(cur.text);
+  if (mode === 'view') showView();
+}
+// 数式は KaTeX で描く。数式があるときだけ読み込む
+let katex = null;
+function loadKatex() {
+  return katex ||= new Promise((ok, ng) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet'; css.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+    const js = document.createElement('script');
+    js.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+    js.onload = () => ok(window.katex); js.onerror = () => { katex = null; ng(); };
+    document.head.append(css, js);
+  });
+}
+/* ===== 書誌取得ブリッジ（1.3.0 以降）経由でアイコン画像を読む ===== */
+// Cosense は他サイトへの画像の埋め込みを断るので、拡張に data: URL にしてもらう
+let bridge = null;
+const waiters = new Map();
+window.addEventListener('message', e => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (d?.type === 'yuzh-bridge-pong') bridge = true;
+  if (d?.type === 'yuzh-bridge-res' && waiters.has(d.id)) { waiters.get(d.id)(d); waiters.delete(d.id); }
+});
+async function hasBridge() {
+  if (bridge !== null) return bridge;
+  window.postMessage({ type: 'yuzh-bridge-ping' }, location.origin);
+  for (let i = 0; i < 15 && bridge === null; i++) await new Promise(r => setTimeout(r, 100));
+  return bridge ??= false;
+}
+function bridgeFetch(url) {
+  const id = Math.random().toString(36).slice(2);
+  return new Promise(resolve => {
+    waiters.set(id, resolve);
+    window.postMessage({ type: 'yuzh-bridge-req', id, url }, location.origin);
+    setTimeout(() => { if (waiters.delete(id)) resolve({ ok: false }); }, 30000);
+  }).then(r => r.ok && r.text.startsWith('data:image/') ? r.text : null);
+}
+const icons = new Map(); // URL → Promise<data URL | null>
+async function loadIcons(view) {
+  const spans = view.querySelectorAll('span.icon[data-icon]');
+  if (!spans.length || !await hasBridge()) return;
+  spans.forEach(el => {
+    const src = el.dataset.icon;
+    if (!icons.has(src)) icons.set(src, bridgeFetch(src));
+    icons.get(src).then(data => {
+      if (!data || !el.isConnected) return;
+      const img = document.createElement('img');
+      Object.assign(img, { className: 'icon', src: data, alt: el.title, title: el.title });
+      el.replaceWith(img);
+    });
+  });
+}
+
+function showView() {
+  const view = $('view');
+  view.innerHTML = render(cur.text);
+  const maths = view.querySelectorAll('.math');
+  if (maths.length) loadKatex().then(k => maths.forEach(el => k.render(el.dataset.tex, el, { throwOnError: false })), () => {});
+  loadIcons(view);
 }
 function setMode(m) {
   mode = m;
   $('editor').classList.toggle('hidden', m === 'view');
   $('view').classList.toggle('hidden', m === 'edit');
   $('mode').textContent = m === 'edit' ? '閲覧' : '編集';
-  if (m === 'view') $('view').innerHTML = render(cur.text);
+  if (m === 'view') showView();
   else $('editor').focus();
 }
 
@@ -286,7 +393,7 @@ function linkQuery() {
   const ed = $('editor');
   const before = ed.value.slice(0, ed.selectionStart);
   const m = before.match(/\[([^\[\]\n]*)$/);
-  return m && !/^[*\/-]\s/.test(m[1]) ? m[1] : null;
+  return m && !/^[*\/$-]\s/.test(m[1]) ? m[1] : null;
 }
 function suggest() {
   const q = linkQuery();
@@ -325,11 +432,12 @@ $('editor').addEventListener('keydown', e => {
     if (e.key === 'Enter' || e.key === 'Tab') { pick(sel); e.preventDefault(); return; }
     if (e.key === 'Escape') { $('suggest').classList.add('hidden'); sugg = []; return; }
   }
-  // Tab で行のインデント（Cosense の箇条書き）
+  // Tab：行頭なら行のインデント（Cosense の箇条書き）、文字の後ろならタブ文字（表のセル区切り）
   if (e.key === 'Tab' && !e.isComposing) {
     e.preventDefault();
     const ed = e.target, ls = ed.value.lastIndexOf('\n', ed.selectionStart - 1) + 1;
-    if (e.shiftKey) { if (ed.value[ls] === ' ') ed.setRangeText('', ls, ls + 1, 'end'); }
+    if (!e.shiftKey && ed.value.slice(ls, ed.selectionStart).trim()) ed.setRangeText('\t', ed.selectionStart, ed.selectionEnd, 'end');
+    else if (e.shiftKey) { if (ed.value[ls] === ' ') ed.setRangeText('', ls, ls + 1, 'end'); }
     else ed.setRangeText(' ', ls, ls, 'end');
     ed.dispatchEvent(new Event('input'));
   }
@@ -365,6 +473,7 @@ $('del').onclick = () => {
   if (cur.text.trim() && !confirm(`「${titleOf(cur) || '無題'}」を削除しますか？`)) return;
   notes = notes.filter(n => n !== cur); cur = null;
   open(notes.sort((a, b) => b.updated - a.updated)[0] || create());
+  renderV1();
 };
 document.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey)) return;
@@ -373,6 +482,7 @@ document.addEventListener('keydown', e => {
 
 const saved = store.get(KEY);
 open(notes.find(n => n.id === saved?.current) || notes[0] || create());
+renderV1();
 </script>
 </body>
 </html>
