@@ -39,12 +39,10 @@ aside { background: var(--side); border-right: 1px solid var(--line); display: f
 .icon:hover { background: var(--panel); color: var(--ink); }
 #search { margin: 0 12px 8px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg);
           color: var(--ink); font: inherit; font-size: 14px; }
-#list, #v1list { list-style: none; margin: 0; padding: 0 6px 12px; overflow-y: auto; flex: 1; }
-#v1 { border-top: 1px solid var(--line); padding: 8px 0 0; max-height: 40%; overflow-y: auto; }
-#v1 summary { padding: 4px 16px 8px; font-size: 12px; color: var(--muted); cursor: pointer; }
-#list button, #v1list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
+#list { list-style: none; margin: 0; padding: 0 6px 12px; overflow-y: auto; flex: 1; }
+#list button { width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 7px 10px;
                font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#list button:hover, #v1list button:hover { background: var(--panel); color: var(--ink); }
+#list button:hover { background: var(--panel); color: var(--ink); }
 #list button[aria-current="true"] { background: var(--panel); color: var(--ink); font-weight: 700; }
 
 /* エディタ */
@@ -115,10 +113,6 @@ section { display: flex; flex-direction: column; min-width: 0; min-height: 0; pa
   </div>
   <input id="search" type="search" placeholder="メモを検索" aria-label="メモを検索">
   <ul id="list"></ul>
-  <details id="v1" class="hidden">
-    <summary>1.0 の下書き</summary>
-    <ul id="v1list"></ul>
-  </details>
 </aside>
 
 <section>
@@ -170,15 +164,17 @@ function create(text = '') {
 }
 function open(n, m = mode) {
   // 何も書いていないメモは、離れたら消す
-  if (cur && cur !== n && !cur.text.trim()) notes = notes.filter(x => x !== cur);
+  if (cur && cur !== n && !cur.text.trim()) { notes = notes.filter(x => x !== cur); deleteV1(cur.from); }
   cur = n; save();
   $('editor').value = n.text;
   document.body.classList.remove('side-open');
   setMode(m); renderList(); refresh();
 }
 
-/* ===== 1.0 の下書きを読む ===== */
-// 開くと 2.0 のメモに写す（from に元の id を残し、二重に写さない）。1.0 側の下書きはそのまま
+/* ===== 1.0 の下書きと同期する ===== */
+// 2.0 のメモ1つと 1.0 の下書き1つを対にする（メモの from = 下書きの id）。
+// 書いたほうから相手へ写し、どちらかで消したら両方から消す
+const DRAFTS = 'yuzhnote-drafts';
 const V1_TAG = { book: '#読書メモ', know: '#知識メモ', comp: '#コンピュータ' };
 const v1Tag = t => /[\[\]#]/.test(t) ? `[${t}]` : '#' + t.replace(/\s+/g, '_');
 function v1Text(d) {
@@ -212,42 +208,46 @@ function v1Parse(text, d) {
   out.body = lines.slice(i).join('\n');
   return out;
 }
-// 1.0 の下書きから写したメモ：2.0 で書いたら 1.0 へ書き戻し、1.0 のほうが新しければ 2.0 へ取り込む
+const v1HasContent = d => d.title?.trim() || d.urls?.some(u => u.trim()) || d.tags?.length || (d.body?.trim() && d.body !== d.lastTemplate);
 function syncToV1(n) {
-  if (!n.from) return;
-  const saved = store.get('yuzhnote-drafts');
-  const d = saved?.list?.find(x => x.id === n.from);
-  if (!d) return; // 1.0 側で消された
+  if (!n.text.trim() && !n.from) return; // まだ何も書いていないメモは 1.0 に出さない
+  const saved = store.get(DRAFTS) || { list: [] };
+  let d = saved.list.find(x => x.id === n.from);
+  if (!d) {
+    d = { id: newId(), cat: 'know', sub: 'ブルアカ二次創作', status: '', title: '', urls: [''], tags: [], body: '', lastTemplate: '' };
+    saved.list.push(d); saved.current ??= d.id;
+    n.from = d.id; save();
+  }
   Object.assign(d, v1Parse(n.text, d), { updated: n.updated });
-  store.set('yuzhnote-drafts', saved);
+  store.set(DRAFTS, saved);
+}
+function deleteV1(id) {
+  const saved = store.get(DRAFTS);
+  if (!id || !saved?.list) return;
+  saved.list = saved.list.filter(d => d.id !== id);
+  if (saved.current === id) saved.current = saved.list[0]?.id;
+  store.set(DRAFTS, saved);
 }
 function syncFromV1() {
-  const list = store.get('yuzhnote-drafts')?.list || [];
-  let changed = false;
-  for (const n of notes) {
-    const d = n.from && list.find(x => x.id === n.from);
-    if (d && d.updated > n.updated) { n.text = v1Text(d); n.updated = d.updated; changed = true; }
+  const list = store.get(DRAFTS)?.list;
+  if (!list) return; // 1.0 を一度も使っていない端末
+  const before = JSON.stringify(notes);
+  // 1.0 で消された下書きのメモは消す
+  notes = notes.filter(n => !n.from || list.some(d => d.id === n.from));
+  for (const d of list) {
+    const n = notes.find(x => x.from === d.id);
+    if (n) { if (d.updated > n.updated) Object.assign(n, { text: v1Text(d), updated: d.updated }); }
+    else if (v1HasContent(d)) Object.assign(create(v1Text(d)), { from: d.id, updated: d.updated || Date.now() });
   }
-  if (!changed) return;
+  // 2.0 にしかないメモ（1.0 の同期より前に書いたもの）を 1.0 へ
+  notes.filter(n => !n.from).forEach(syncToV1);
+  if (JSON.stringify(notes) === before) return;
+  if (!notes.includes(cur)) { cur = null; open([...notes].sort((a, b) => b.updated - a.updated)[0] || create()); return; }
   save(); renderList();
-  if (cur.from) { $('editor').value = cur.text; refresh(); }
+  if ($('editor').value !== cur.text) { $('editor').value = cur.text; refresh(); }
 }
 addEventListener('focus', syncFromV1);
-addEventListener('storage', e => { if (e.key === 'yuzhnote-drafts') syncFromV1(); });
-
-function renderV1() {
-  const list = (store.get('yuzhnote-drafts')?.list || [])
-    .filter(d => !notes.some(n => n.from === d.id) && (d.title?.trim() || d.urls?.some(u => u.trim()) || (d.body?.trim() && d.body !== d.lastTemplate)));
-  $('v1').classList.toggle('hidden', !list.length);
-  $('v1list').textContent = '';
-  for (const d of list.sort((a, b) => b.updated - a.updated)) {
-    const li = document.createElement('li'), b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = d.title?.trim() || '（無題）';
-    b.onclick = () => { const n = create(v1Text(d)); n.from = d.id; n.updated = d.updated || Date.now(); open(n, 'view'); renderV1(); };
-    li.append(b); $('v1list').append(li);
-  }
-}
+addEventListener('storage', e => { if (e.key === DRAFTS) syncFromV1(); });
 
 /* ===== 1.0 の候補辞書（Cosense の既存ページ名）を借りる ===== */
 const cosense = new Set((store.get('yuzhnote-dict')?.titles || []).map(([t]) => t));
@@ -431,7 +431,8 @@ function setMode(m) {
 let saveTimer;
 $('editor').addEventListener('input', () => {
   cur.text = $('editor').value; cur.updated = Date.now();
-  clearTimeout(saveTimer); saveTimer = setTimeout(() => { save(); syncToV1(cur); renderList(); }, 300);
+  const n = cur;
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => { save(); syncToV1(n); renderList(); }, 300);
   refresh(); suggest();
 });
 
@@ -518,10 +519,10 @@ $('copy').onclick = async () => {
   catch { $('info').textContent = 'コピーできませんでした'; }
 };
 $('del').onclick = () => {
-  if (cur.text.trim() && !confirm(`「${titleOf(cur) || '無題'}」を削除しますか？`)) return;
+  if (cur.text.trim() && !confirm(`「${titleOf(cur) || '無題'}」を削除しますか？1.0 の下書きからも消えます。`)) return;
+  deleteV1(cur.from);
   notes = notes.filter(n => n !== cur); cur = null;
   open(notes.sort((a, b) => b.updated - a.updated)[0] || create());
-  renderV1();
 };
 document.addEventListener('keydown', e => {
   if (!(e.metaKey || e.ctrlKey)) return;
@@ -531,7 +532,6 @@ document.addEventListener('keydown', e => {
 const saved = store.get(KEY);
 open(notes.find(n => n.id === saved?.current) || notes[0] || create());
 syncFromV1();
-renderV1();
 </script>
 </body>
 </html>
