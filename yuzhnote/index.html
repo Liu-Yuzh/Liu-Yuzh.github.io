@@ -666,6 +666,14 @@ renderDraftList();
 update({ touch: !!shared });
 if (shared) setStatus(shared);
 loadDict();
+// 別のタブ（2.0 など）で下書きが書き換えられたら読み直す。古い内容で上書きしないため
+addEventListener('storage', e => {
+  if (e.key !== DRAFTS_KEY) return;
+  const id = cur.id;
+  loadDrafts();
+  cur = drafts.find(d => d.id === id) || cur;
+  writeForm(); readForm(); renderDraftList();
+});
 </script>
 </body>
 </html>

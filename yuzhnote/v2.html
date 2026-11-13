@@ -187,6 +187,54 @@ function v1Text(d) {
   const body = d.body === d.lastTemplate ? '' : (d.body || '').replace(/\s+$/, '');
   return [d.title || '', tags.join(' '), ...(d.urls || []).map(u => u.trim()).filter(Boolean), ...(body ? [body] : [])].join('\n');
 }
+// v1Text の逆：1行目がタイトル、2行目がタグ行、続く URL だけの行がリンク、残りが本文
+const V1_CAT = { '読書メモ': 'book', '知識メモ': 'know', 'コンピュータ': 'comp', '文化創作': 'art' };
+const V1_STATUS = ['積読', '読書中', '読了'];
+function v1Parse(text, d) {
+  const lines = text.split('\n');
+  const out = { title: lines[0].trim(), cat: d.cat, sub: d.sub, status: '', tags: [], urls: [] };
+  let i = 1;
+  // [..] のタグは中に [ ] を含むことがある（1.0 の fmtTag）ので、次の " #" か " [" か行末までを1つとみる
+  const toks = (lines[1] || '').trim().match(/#\S+|\[.*?\](?=\s+[#\[]|$)/g);
+  if (toks && toks.join(' ') === lines[1].trim()) {
+    i = 2;
+    let art = false;
+    // # のタグは 1.0 で空白を _ にしているので戻す
+    for (const t of toks.map(t => t.startsWith('#') ? t.slice(1).replace(/_/g, ' ') : t.slice(1, -1))) {
+      if (V1_CAT[t]) { out.cat = V1_CAT[t]; art = t === '文化創作'; }
+      else if (art) { out.sub = t; art = false; }
+      else if (out.cat === 'book' && V1_STATUS.includes(t)) out.status = t;
+      else out.tags.push(t);
+    }
+  }
+  while (i < lines.length && /^https?:\/\/\S+$/.test(lines[i].trim())) out.urls.push(lines[i++].trim());
+  if (!out.urls.length) out.urls = [''];
+  out.body = lines.slice(i).join('\n');
+  return out;
+}
+// 1.0 の下書きから写したメモ：2.0 で書いたら 1.0 へ書き戻し、1.0 のほうが新しければ 2.0 へ取り込む
+function syncToV1(n) {
+  if (!n.from) return;
+  const saved = store.get('yuzhnote-drafts');
+  const d = saved?.list?.find(x => x.id === n.from);
+  if (!d) return; // 1.0 側で消された
+  Object.assign(d, v1Parse(n.text, d), { updated: n.updated });
+  store.set('yuzhnote-drafts', saved);
+}
+function syncFromV1() {
+  const list = store.get('yuzhnote-drafts')?.list || [];
+  let changed = false;
+  for (const n of notes) {
+    const d = n.from && list.find(x => x.id === n.from);
+    if (d && d.updated > n.updated) { n.text = v1Text(d); n.updated = d.updated; changed = true; }
+  }
+  if (!changed) return;
+  save(); renderList();
+  if (cur.from) { $('editor').value = cur.text; refresh(); }
+}
+addEventListener('focus', syncFromV1);
+addEventListener('storage', e => { if (e.key === 'yuzhnote-drafts') syncFromV1(); });
+
 function renderV1() {
   const list = (store.get('yuzhnote-drafts')?.list || [])
     .filter(d => !notes.some(n => n.from === d.id) && (d.title?.trim() || d.urls?.some(u => u.trim()) || (d.body?.trim() && d.body !== d.lastTemplate)));
@@ -383,7 +431,7 @@ function setMode(m) {
 let saveTimer;
 $('editor').addEventListener('input', () => {
   cur.text = $('editor').value; cur.updated = Date.now();
-  clearTimeout(saveTimer); saveTimer = setTimeout(() => { save(); renderList(); }, 300);
+  clearTimeout(saveTimer); saveTimer = setTimeout(() => { save(); syncToV1(cur); renderList(); }, 300);
   refresh(); suggest();
 });
 
@@ -482,6 +530,7 @@ document.addEventListener('keydown', e => {
 
 const saved = store.get(KEY);
 open(notes.find(n => n.id === saved?.current) || notes[0] || create());
+syncFromV1();
 renderV1();
 </script>
 </body>
