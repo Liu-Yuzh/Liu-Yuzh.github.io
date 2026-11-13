@@ -71,8 +71,9 @@ code { font-size: 13px; background: var(--bg); padding: 1px 5px; border-radius: 
       <li><code>www.hanmoto.com</code>（版元ドットコム）… 書誌</li>
       <li><code>cdn.syndication.twimg.com</code>（X の埋め込み用データ）… 自分のツイートのスレッドをさかのぼるため</li>
     </ol>
-    <p>メモ送信エディタからは、YuzhNote のページ一覧（<code>scrapbox.io/api/pages/YuzhNote</code>）だけを読みます。タグの候補を出すためで、ほかのページや本文は読みません。非公開のプロジェクトでも読めるよう、このときだけ Cosense にログインした状態で読みます。読んだ一覧はその端末のエディタの中にだけ保存されます。</p>
+    <p>メモ送信エディタからは、YuzhNote のページ一覧（<code>scrapbox.io/api/pages/YuzhNote</code>）と、アイコン記法に使うページのアイコン画像（<code>scrapbox.io/api/pages/…/アイコン名/icon</code>）だけを読みます。タグの候補とアイコンを出すためで、ページの本文は読みません。非公開のプロジェクトでも読めるよう、このときだけ Cosense にログインした状態で読みます。読んだ一覧はその端末のエディタの中にだけ保存されます。</p>
     <p class="note">ブラウザは安全のため、あるサイト（Cosense）から別のサイトの中身を読むことを制限しています（CORS）。これらのサイトはその許可を出していないので、拡張の権限で読んでいます。</p>
+    <p class="note">1.3.0 から、YuzhNote 2.0 の閲覧画面でアイコン記法（<code>[名前.icon]</code>）の画像が出るようになりました。更新のとき <code>storage.googleapis.com</code>・<code>gyazo.com</code> へのアクセスの許可を求められたら許可してください。</p>
     <p class="note">1.1.0 以前を入れた方へ：1.2.0 からメモ送信エディタでも動くようになりました。Tampermonkey で更新するとき、<code>liu-yuzh.github.io</code> と <code>scrapbox.io</code> へのアクセスの許可を求められたら許可してください。</p>
     <p class="note">1.0.0 を入れた方へ：Tampermonkey は自動で更新されます（すぐ更新したいときは、もう一度「ブリッジを入れる」から入れ直してください）。iPhone の Userscripts は入れ直してください。</p>
   </section>
